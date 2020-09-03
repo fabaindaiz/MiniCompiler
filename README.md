@@ -3,16 +3,18 @@ Starter code for compilers homework
 
 ## Organization of the repository
 
-- `src/`: all the resources of the compiler
-- `src/compiler`: the compiler sources (as a library) **para la entrega 0, esta carpeta incluye solo un archivo con el parser e interprete**
-- `src/execs`: executables for tests and the frontend of the compiler
-- `src/tests`: the test data used to test the compiler **para la entrega 0, esta carpeta no se va a usar**
+The organization of the repository is designed for the development of your compiler. 
+**(NOTA: para la entrega 0, algunos items no se van a usar a su plena potencial, ver comentarios E0 abajo)**
 
-- `bbctester/`: a library with helper tools to test the compiler **para la entrega 0, esta librería no se va a usar**
+- `compiler/`: the compiler, defined as a dune library (using a library allows us to load the compiler in `utop` for interactive experimentation with `dune utop`). 
+**(E0: esta carpeta incluye solo un archivo con el parser y el interprete)**
+- `bin/`: executables for tests and the compiler **(EO: interpreter)**
+- **(E0: no se usa)** `tests/`: the test data used to test the compiler 
 
-- `dune-workspace`, `dune-project`: to make dune (ocaml build manager) happy (fix the root of the project)
-- `Makefile`: shortcut to build and test
+- **(E0: no se usa)** `bbctester/`: a library with helper tools to test the compiler 
 
+- `dune-workspace`, `dune-project`: root configuration for the dune package manager
+- `Makefile`: shortcuts to build and test
 
 Dune will build everything inside the `_build/` directory.
 
@@ -21,22 +23,23 @@ Dune will build everything inside the `_build/` directory.
 - `make init`: generate .merlin files for autocompletion in IDE
 
 - `make test`: execute the tests for the compiler in `src/execs/test.ml`
-  variants include 
-  * `make ctest` for compact representation ; and
-  * `make test F=<pat>` where `<pat>` is a pattern to filter which tests should be executed **para la entrega 0, los filtros no se usarán**
+  variants include: 
+  * `make ctest` for compact representation of the tests execution
+  * **(E0: no se usa)** you can also add `F=<pat>` where `<pat>` is a pattern to filter which tests should be executed (eg. `make test F=arith` to run only test files whose name contains `arith`)
   
-- `make clean-tests`:
 - `make clean`: cleans everything
+  
+- **(E0: no se usa)** `make clean-tests`: cleans the tests output 
 
 
 ## Writing tests
 
-Tests are written using the [alcotest](https://github.com/mirage/alcotest) unit-testing framework. Examples can be found in `src/execs/test.ml`.
+Tests are written using the [alcotest](https://github.com/mirage/alcotest) unit-testing framework. Examples can be found in `bin/test.ml`.
 
 Alcotests executes a battery of unit-tests through the `run` function that takes a name (a string) and a list of items to be tested.
 
 Each such item is composed itself from an identifier (a string) together with a list of unit-test obtained with the `test_case` function.
-`test_case` takes a description of the test, a mode (either ``` `Quick ``` or ``` `Slow ```) and the test itself as a function `unit -> unit`.
+`test_case` takes a description of the test, a mode (either ``` `Quick ``` or ``` `Slow ```---use ``` `Quick ``` by default) and the test itself as a function `unit -> unit`.
 
 A test is built with the `check` function which takes the following parameters:
 - a way to test results of type `result_type testable`,
@@ -44,6 +47,12 @@ A test is built with the `check` function which takes the following parameters:
 - the program to be tested, and the expected value (both of type `result_type`)
 
 
+## Execution
+
+There is a sample source file `example.src`, with a simple expression in it. To run it, 
+use `dune exec bin/main.exe prog.src`.
+
+To execute your interpreter interactively, use `dune utop` in a terminal, and then `open` the interpreter (`open Compiler.Interp;;`).
 
 ## Resources
 

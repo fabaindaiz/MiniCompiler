@@ -6,21 +6,21 @@ init:
 	dune build @check
 
 test:
-	dune exec src/execs/test.exe -- test '$(F)'
+	dune exec bin/test.exe -- test '$(F)'
 
 ctest:
-	dune exec src/execs/test.exe -- test '$(F)' -c
+	dune exec bin/test.exe -- test '$(F)' -c
 
 %.exe:
-	dune build src/execs/$@
+	dune build bin/$@
 
 clean: clean-tests
 	rm -Rf _build
 
 clean-tests:
-	rm -f src/tests/*.s \
-				src/tests/*.o \
-				src/tests/*.run \
-				src/tests/*.result \
-				src/tests/*~
+	rm -f tests/*.s \
+				tests/*.o \
+				tests/*.run \
+				tests/*.result \
+				tests/*~
 
