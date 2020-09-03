@@ -6,12 +6,12 @@ Starter code for compilers homework
 The organization of the repository is designed for the development of your compiler. 
 **(NOTA: para la entrega 0, algunos items no se van a usar en su pleno potencial, ver comentarios marcados "E0" abajo)**
 
-- `compiler/`: the compiler, defined as a dune library (using a library allows us to play with our code in a REPL, see below)
-**(E0: esta carpeta incluye solo un archivo con el parser y el interprete)**
-- `bin/`: executables for tests and the compiler **(E0: interpreter)**
-- **(E0: no se usa)** `tests/`: the test data used to test the compiler 
+- `compiler/`: the compiler **(E0: the interpreter)**, defined as a dune library 
+(using a library allows us to play with our code in a REPL, see below)
+- `bin/`: top-level executables for the compiler **(E0: interpreter)** and tests 
+- **(E0: no se usa)** `tests/`: test files for the compiler 
 
-- **(E0: no se usa)** `bbctester/`: a library with helper tools to test the compiler 
+- **(E0: no se usa)** `bbctester/`: a library for supporting compiler test files
 
 - `dune-workspace`, `dune-project`: root configuration for the dune package manager
 - `Makefile`: shortcuts to build and test
@@ -50,10 +50,10 @@ A test is built with the `check` function which takes the following parameters:
 
 ## Execution
 
-There is a sample source file `example.src`, with a simple expression in it. To run it, 
-use `dune exec bin/main.exe prog.src`.
+There is a sample source file `example.src`, with a simple expression in it. 
+To run it, use `dune exec bin/run.exe prog.src`.
 
-To execute your interpreter interactively, use `dune utop` in a terminal, and then `open` the interpreter (`open Compiler.Interp;;`).
+To execute your interpreter interactively, use `dune utop` in a terminal, and then load the interpreter (`open Compiler.Interp;;`).
 
 ## Resources
 
