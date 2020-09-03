@@ -4,14 +4,14 @@ Starter code for compilers homework
 ## Organization of the repository
 
 - `src/`: all the ressources of the compiler
-- `src/compiler`: the compiler sources (as a library) 
+- `src/compiler`: the compiler sources (as a library) *para la entrega 0, esta carpeta incluye solo un archivo con el parser e interprete*
 - `src/execs`: executables for tests and the frontend of the compiler
-- `src/tests`: the test data used to test the compiler
+- `src/tests`: the test data used to test the compiler *para la entrega 0, esta carpeta no se va a usar*
 
-- `bbctester/`: a library with helper tools to test the compiler
+- `bbctester/`: a library with helper tools to test the compiler *para la entrega 0, esta librería no se va a usar*
 
 - `dune-workspace`, `dune-project`: to make dune (ocaml build manager) happy (fix the root of the project)
-- `Makefile`: shortcut to build/test
+- `Makefile`: shortcut to build and test
 
 
 Dune will build everything inside the `_build/` directory.
@@ -23,7 +23,7 @@ Dune will build everything inside the `_build/` directory.
 - `make test`: execute the tests for the compiler in `src/execs/test.ml`
   variants include 
   * `make ctest` for compact representation ; and
-  * `make F="pat"` where "pat" is a pattern to filter which tests should be executed
+  * `make F="pat"` where "pat" is a pattern to filter which tests should be executed *para la entrega 0, los filtros no se usarán*
   
 - `make clean-tests`:
 - `make clean`: cleans everything
