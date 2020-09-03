@@ -1,24 +1,24 @@
 open Compiler.Interp
 
-
-(* Testing arithmetic expression using the print function defined in Interp *)
+(* Testing arithmetic expression using the print function defined in Interp 
+   and the default equality for comparison *)
 let exp : exp Alcotest.testable =
   Alcotest.testable pp_exp (=)
 
 let value : value Alcotest.testable =
-  Alcotest.testable pp_value eq_value
+  Alcotest.testable pp_value (=)
 
 
 (* Tests for our [parse] function *)
 let test_parse_int () =
-  Alcotest.check exp "same int" (parse (Atom "5")) (Num 5)
+  Alcotest.check exp "same int" (parse (`Atom "5")) (Num 5)
 
 let test_parse_var () =
-  Alcotest.check exp "same var" (parse (Atom "x")) (Var "x")
+  Alcotest.check exp "same var" (parse (`Atom "x")) (Var "x")
 
 let test_parse_compound () =
   Alcotest.check exp "same expr"
-    (parse (List [Atom "+" ; List [Atom "*" ; Atom "3"; Atom "x"]; Atom "7"]))
+    (parse (`List [`Atom "+" ; `List [`Atom "*" ; `Atom "3"; `Atom "x"]; `Atom "7"]))
     (Plus (Times (Num 3, Var "x"), Num 7))
 
 

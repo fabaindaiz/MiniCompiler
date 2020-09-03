@@ -1,4 +1,4 @@
 (library
  (name compiler)
- (modules interp sexp)
+ (modules interp)
  (libraries containers fmt))
