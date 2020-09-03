@@ -4,11 +4,11 @@ Starter code for compilers homework
 ## Organization of the repository
 
 The organization of the repository is designed for the development of your compiler. 
-**(NOTA: para la entrega 0, algunos items no se van a usar a su plena potencial, ver comentarios E0 abajo)**
+**(NOTA: para la entrega 0, algunos items no se van a usar en su pleno potencial, ver comentarios marcados "E0" abajo)**
 
-- `compiler/`: the compiler, defined as a dune library (using a library allows us to load the compiler in `utop` for interactive experimentation with `dune utop`). 
+- `compiler/`: the compiler, defined as a dune library (using a library allows us to play with our code in a REPL, see below)
 **(E0: esta carpeta incluye solo un archivo con el parser y el interprete)**
-- `bin/`: executables for tests and the compiler **(EO: interpreter)**
+- `bin/`: executables for tests and the compiler **(E0: interpreter)**
 - **(E0: no se usa)** `tests/`: the test data used to test the compiler 
 
 - **(E0: no se usa)** `bbctester/`: a library with helper tools to test the compiler 
@@ -22,7 +22,7 @@ Dune will build everything inside the `_build/` directory.
 
 - `make init`: generate .merlin files for autocompletion in IDE
 
-- `make test`: execute the tests for the compiler in `src/execs/test.ml`
+- `make test`: execute the tests for the compiler defined in `bin/test.ml`
   variants include: 
   * `make ctest` for compact representation of the tests execution
   * **(E0: no se usa)** you can also add `F=<pat>` where `<pat>` is a pattern to filter which tests should be executed (eg. `make test F=arith` to run only test files whose name contains `arith`)
