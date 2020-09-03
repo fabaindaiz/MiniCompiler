@@ -34,7 +34,8 @@ Dune will build everything inside the `_build/` directory.
 
 ## Writing tests
 
-Tests are written using the [alcotest](https://github.com/mirage/alcotest) unit-testing framework. Examples can be found in `bin/test.ml`.
+Tests are written using the [alcotest](https://github.com/mirage/alcotest) unit-testing framework. Examples can be found in `bin/test.ml`. 
+*Add your additional tests to this file.*
 
 Alcotests executes a battery of unit-tests through the `run` function that takes a name (a string) and a list of items to be tested.
 
