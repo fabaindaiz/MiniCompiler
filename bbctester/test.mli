@@ -27,7 +27,9 @@ val read_test : string -> t option
 
 type compiler = Format.formatter -> string -> unit
 
-val make_test : compiler:compiler -> string -> string * (unit -> unit)
+val make_test : string -> compiler:compiler -> string -> string * (unit -> unit)
 val testfiles_in_dir : string -> string list
 
-val tests_from_dir : compiler:compiler -> string -> unit Alcotest.test list
+val tests_from_dir : ?runtime:string ->
+  compiler:compiler ->
+  string -> (string * unit Alcotest.test_case list) list
