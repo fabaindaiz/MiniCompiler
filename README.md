@@ -3,7 +3,7 @@ Starter code for compilers homework
 
 ## Organization of the repository
 
-- `src/`: all the ressources of the compiler
+- `src/`: all the resources of the compiler
 - `src/compiler`: the compiler sources (as a library) **para la entrega 0, esta carpeta incluye solo un archivo con el parser e interprete**
 - `src/execs`: executables for tests and the frontend of the compiler
 - `src/tests`: the test data used to test the compiler **para la entrega 0, esta carpeta no se va a usar**
@@ -23,7 +23,7 @@ Dune will build everything inside the `_build/` directory.
 - `make test`: execute the tests for the compiler in `src/execs/test.ml`
   variants include 
   * `make ctest` for compact representation ; and
-  * `make F="pat"` where "pat" is a pattern to filter which tests should be executed **para la entrega 0, los filtros no se usarán**
+  * `make test F=<pat>` where `<pat>` is a pattern to filter which tests should be executed **para la entrega 0, los filtros no se usarán**
   
 - `make clean-tests`:
 - `make clean`: cleans everything
