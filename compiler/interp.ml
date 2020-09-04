@@ -78,9 +78,11 @@ let rec pp_exp : exp Fmt.t =
 open CCSexp
 
 (*
-  Instead of using a standard algebraic data types for sexps, 
-  this library uses a feature known as "polymorphic variants".
+  Instead of using a standard algebraic data types for sexps, such as:
   
+      type sexp = Atom of string | List of sexp list 
+ 
+  this library uses a feature known as "polymorphic variants".
   This is a flexible mechanism where data is built by tagging it with symbols,
   instead of using pre-declared constructors. These symbols are written with ticks `.
   
