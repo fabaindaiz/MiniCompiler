@@ -81,7 +81,7 @@ open CCSexp
   Instead of using a standard algebraic data types for sexps, 
   this library uses a feature known as "polymorphic variants".
   
-  This is a flexible mechanism where data is build by tagging it with symbols,
+  This is a flexible mechanism where data is built by tagging it with symbols,
   instead of using pre-declared constructors. These symbols are written with ticks `.
   
   Then sexp is just an alias for a (recursive) polymorphic variant:
