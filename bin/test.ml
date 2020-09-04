@@ -30,13 +30,13 @@ let test_parse_error () =
 
 (* Tests for our [interp] function *)
 let test_interp_num () =
-  (check value) "same int" (interp empty_env (Num 42)) (NumV 42)
+  check value "same int" (interp empty_env (Num 42)) (NumV 42)
 
 let test_interp_var () =
-  (check value) "same int" (interp ["x", NumV 7] (Var "x")) (NumV 7)
+  check value "same int" (interp ["x", NumV 7] (Var "x")) (NumV 7)
 
 let test_interp_compound () =
-  (check value) "same int"
+  check value "same int"
     (interp empty_env (Plus (Times (Num 3, Num 5), Num 12)))
     (NumV 27)
 
