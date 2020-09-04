@@ -1,6 +1,10 @@
 # CDI-reference
 Starter code for compilers homework
 
+## Requirements & Setup
+
+See the [detailed description](https://users.dcc.uchile.cl/~etanter/CC5116-2020/#(part._materials)) on the page of the course.
+
 ## Organization of the repository
 
 The organization of the repository is designed for the development of your compiler. 
