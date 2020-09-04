@@ -21,6 +21,13 @@ let test_parse_compound () =
     (parse (`List [`Atom "+" ; `List [`Atom "*" ; `Atom "3"; `Atom "x"]; `Atom "7"]))
     (Plus (Times (Num 3, Var "x"), Num 7))
 
+let test_parse_error () =
+  let sexp = `List [`Atom "foo"; `Atom "bar"] in
+  Alcotest.check_raises "Should raise failwith" 
+    (Failure (Fmt.strf "Not a valid exp: %a" CCSexp.pp sexp))
+    (fun () -> ignore @@ parse sexp)
+
+
 
 (* Tests for our [interp] function *)
 let test_interp_num () =
@@ -45,7 +52,8 @@ let () =
       "parse", [
         test_case "A number" `Quick test_parse_int ;
         test_case "A variable" `Quick test_parse_var ;
-        test_case "A compound expression" `Quick test_parse_compound
+        test_case "A compound expression" `Quick test_parse_compound ;
+        test_case "An invalid s-expression" `Quick test_parse_error
       ] ;
 
       "interp", [
