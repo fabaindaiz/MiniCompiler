@@ -32,28 +32,15 @@ let sexp_from_file (filename : string) : CCSexp.sexp =
 
 
 
-open Interp
-
-let rec parse_exp (sexp : sexp) : exp = (* it's not a problem to have a variable [sexp] of type [sexp] (separate namespaces) *)
-  match sexp with
-  | `Atom s ->
-    begin match int_of_string_opt s with (* A frequent trouble: when nesting [match] the inner match must *)
-      | Some n -> Num n                  (* be enclosed in [( ... )] or [begin ... end] *)
-      | None -> Var s
-    end
-  | `List [`Atom "+" ; e1 ; e2 ] -> Plus (parse_exp e1, parse_exp e2)
-  | `List [`Atom "*" ; e1 ; e2 ] -> Times (parse_exp e1, parse_exp e2)
-  | e -> Fmt.failwith "Not a valid exp: %a" CCSexp.pp e  
-
 open Expr
 
-let rec parse_expr (sexp : sexp) : expr = 
+let rec parse (sexp : sexp) : expr = 
   match sexp with
   | `Atom s ->
     begin match Int64.of_string_opt s with
       | Some n -> Num n
       | None -> Fmt.failwith "Not a known atom: %s" s
     end
-  | `List [`Atom "add1" ; e ] -> Add1 (parse_expr e) 
-  | `List [`Atom "sub1" ; e ] -> Sub1 (parse_expr e)
+  | `List [`Atom "add1" ; e ] -> Add1 (parse e) 
+  | `List [`Atom "sub1" ; e ] -> Sub1 (parse e)
   | e -> Fmt.failwith "Not a valid exp: %a" CCSexp.pp e

@@ -21,4 +21,4 @@ Fmt.pf fmt "%s@\n%a" prelude pp_instrs instrs_asm
 
 let compile_src = 
   let open Parse in
-  Fmt.using (fun src -> parse_expr (sexp_from_string src)) compile_prog
+  Fmt.using (fun src -> parse (sexp_from_string src)) compile_prog

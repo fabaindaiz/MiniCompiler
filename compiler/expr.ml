@@ -13,7 +13,7 @@ type expr =
 
 open Fmt
 
-let rec pp_exp fmt = function
+let rec pp_expr fmt = function
   | Num n -> int64 fmt n
-  | Add1 e -> pf fmt "(add1 %a)" pp_exp e
-  | Sub1 e -> pf fmt "(sub1 %a)" pp_exp e
+  | Add1 e -> pf fmt "(add1 %a)" pp_expr e
+  | Sub1 e -> pf fmt "(sub1 %a)" pp_expr e
