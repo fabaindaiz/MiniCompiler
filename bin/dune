@@ -1,3 +1,3 @@
 (executables
- (names run test)
- (libraries compiler alcotest containers))
+ (names run test langc)
+ (libraries compiler alcotest containers bbctester))

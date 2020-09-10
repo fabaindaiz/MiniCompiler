@@ -25,11 +25,16 @@ type t =
 
 val read_test : string -> t option
 
+(* A compiler is a function taking an output formatter and a filename *)
 type compiler = Format.formatter -> string -> unit
 
 val make_test : string -> compiler:compiler -> string -> string * (unit -> unit)
 val testfiles_in_dir : string -> string list
 
-val tests_from_dir : ?runtime:string ->
+(* Given the path of a C runtime file [runtime], a [compiler] and
+  the path [dir] of a directory containing tests files, produces 
+  unit tests for each test files in [dir]  *)
+val tests_from_dir : 
+  runtime:string ->
   compiler:compiler ->
-  string -> (string * unit Alcotest.test_case list) list
+  dir:string -> (string * unit Alcotest.test_case list) list

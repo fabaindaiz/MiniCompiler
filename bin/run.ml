@@ -1,3 +1,4 @@
+open Compiler.Parse
 open Compiler.Interp
 
 let () =
@@ -5,7 +6,7 @@ let () =
   if Array.length args > 1 && Sys.file_exists args.(1)
   then
     sexp_from_file args.(1)
-    |> parse
+    |> parse_exp
     |> interp []
     |> pp_value Fmt.stdout
   else

@@ -164,9 +164,7 @@ let name_from_file filename =
   let open Filename in
   dirname filename ^ "::" ^ basename (chop_extension filename)
 
-let tests_from_dir
-    ?(runtime="src/compiler/rtsys.c")
-    ~compiler dir =
+let tests_from_dir ~runtime ~compiler ~dir =
   let open Alcotest in
   let to_test testfile =
     let testname, exec_test = make_test runtime ~compiler testfile in

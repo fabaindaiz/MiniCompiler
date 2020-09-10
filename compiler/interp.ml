@@ -7,10 +7,10 @@ type id = string
 
 (* Algebraic datatypes *)
 type exp =
-  | Var : id -> exp
-  | Num : int -> exp
-  | Plus : exp * exp -> exp
-  | Times : exp * exp -> exp
+  | Var of id
+  | Num of int
+  | Plus of exp * exp
+  | Times of exp * exp
 
 
 (** Values *)
@@ -23,6 +23,14 @@ let liftNumV : (int -> int -> int) -> value -> value -> value =
     match e1, e2 with
     | NumV n1, NumV n2 -> NumV (op n1 n2)
 
+
+
+let rec  of_expr (e : Expr.expr) : exp =
+  let module E = Expr in
+  match e with 
+  | E.Num n -> Num (Int64.to_int n) (* Beware ! Could fail ! *)  
+  | E.Add1 e -> Plus (of_expr e, Num 1) 
+  | E.Sub1 e -> Plus (of_expr e, Num ~-1)
 
 (** Environments **)
 
@@ -71,42 +79,3 @@ let rec pp_exp : exp Fmt.t =
     | Plus (e1, e2) -> Fmt.pf fmt "(+ %a %a)" pp_exp e1 pp_exp e2
     | Times (e1, e2) -> Fmt.pf fmt "(* %a %a)" pp_exp e1 pp_exp e2
 
-
-(** Parsing **)
-
-(* we use CCsexp as a library for s-expressions *)
-open CCSexp
-
-(*
-  Instead of using a standard algebraic data types for sexps, such as:
-  
-      type sexp = Atom of string | List of sexp list 
- 
-  this library uses a feature known as "polymorphic variants".
-  This is a flexible mechanism where data is built by tagging it with symbols,
-  instead of using pre-declared constructors. These symbols are written with ticks `.
-  
-  Then sexp is just an alias for a (recursive) polymorphic variant:
-
-    type sexp = [ `Atom of id | `List of 'a list ] as 'a
-
-  When matching such an sexp, we look at the tag. See the parse function below for an example.
-  You can also look at the definition and implementation of the CCsexp module for more details.
-*)
-
-let rec parse (sexp : sexp) : exp = (* it's not a problem to have a variable [sexp] of type [sexp] (separate namespaces) *)
-  match sexp with
-  | `Atom s ->
-    begin match int_of_string_opt s with (* A frequent trouble: when nesting [match] the inner match must *)
-      | Some n -> Num n                  (* be enclosed in [( ... )] or [begin ... end] *)
-      | None -> Var s
-    end
-  | `List [`Atom "+" ; e1 ; e2 ] -> Plus (parse e1, parse e2)
-  | `List [`Atom "*" ; e1 ; e2 ] -> Times (parse e1, parse e2)
-  | e -> Fmt.failwith "Not a valid exp: %a" CCSexp.pp e
-
-let sexp_from_file : string -> CCSexp.sexp =
-  fun filename ->
-  match CCSexp.parse_file filename with
-  | Ok s -> s
-  | Error msg -> Fmt.failwith "Unable to parse file %s: %s" filename msg
