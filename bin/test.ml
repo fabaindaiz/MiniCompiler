@@ -1,9 +1,10 @@
-open Compiler.Compile
+open Compiler
+open Compile
 open Alcotest
 
 let parse_exp_tests =
-  let open Compiler.Interp in
-  let open Compiler.Parse in
+  let open Interp in
+  let open Parse in
   (* Testing arithmetic expression using the print function defined in Interp 
     and the default equality for comparison *)
   let exp : exp testable =
@@ -45,7 +46,7 @@ let parse_exp_tests =
 
 
 let interp_tests =
-  let open  Compiler.Interp in
+  let open Interp in
 
   let value : value testable =
     testable pp_value (=)
@@ -72,6 +73,12 @@ let interp_tests =
     test_case "A compound expression" `Slow test_interp_compound
   ]
 
+
+let interpreter (src : string) : string =
+  let open Interp in
+  let e = of_expr Parse.(parse_expr (sexp_from_string src)) in
+  Fmt.to_to_string pp_value (interp [] e)
+
 (* Entry point of tests
  * Beware that the [Alcotest] library takes control of all command line
  * arguments in [run].
@@ -79,4 +86,7 @@ let interp_tests =
 let () =
   run "Compiler" @@
     [ parse_exp_tests ; interp_tests ]
-    @ Bbctester__Test.tests_from_dir ~runtime:"compiler/rtsys.c" ~compiler:compile_src ~dir:"tests"
+    @ Bbctester__Test.tests_from_dir 
+        ~runtime:"compiler/rtsys.c" 
+        ~compiler:compile_src 
+        ~interpreter "tests"

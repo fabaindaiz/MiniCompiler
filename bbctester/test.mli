@@ -28,7 +28,7 @@ val read_test : string -> t option
 (* A compiler is a function taking an output formatter and a filename *)
 type compiler = Format.formatter -> string -> unit
 
-val make_test : string -> compiler:compiler -> string -> string * (unit -> unit)
+val make_test : string -> compiler:compiler -> interpreter:(string -> string) option -> string -> string * (unit -> unit)
 val testfiles_in_dir : string -> string list
 
 (* Given the path of a C runtime file [runtime], a [compiler] and
@@ -37,4 +37,5 @@ val testfiles_in_dir : string -> string list
 val tests_from_dir : 
   runtime:string ->
   compiler:compiler ->
-  dir:string -> (string * unit Alcotest.test_case list) list
+  ?interpreter:(string -> string) ->
+  string -> (string * unit Alcotest.test_case list) list

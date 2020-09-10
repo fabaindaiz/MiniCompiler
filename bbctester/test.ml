@@ -122,6 +122,7 @@ let nasm basefile =
 let make_test
     runtime
     ~(compiler:compiler)
+    ~interpreter
     filename =
   match read_test filename with
   | None -> Alcotest.failf "Could not open or parse test %s" filename
@@ -150,8 +151,15 @@ let make_test
         | Error err -> err
       in
 
+      let expected =
+        match interpreter with
+        | Some interp when test.status = NoError && test.expected = "|INTERPRET" ->
+          NoError, interp test.src
+        | _ -> test.status, test.expected
+      in
+
       let open Alcotest in
-      check compare_results test.name (test.status, test.expected) res
+      check compare_results test.name expected res
 
     in test.name, exec
 
@@ -164,10 +172,10 @@ let name_from_file filename =
   let open Filename in
   dirname filename ^ "::" ^ basename (chop_extension filename)
 
-let tests_from_dir ~runtime ~compiler ~dir =
+let tests_from_dir ~runtime ~compiler ?interpreter dir =
   let open Alcotest in
   let to_test testfile =
-    let testname, exec_test = make_test runtime ~compiler testfile in
+    let testname, exec_test = make_test runtime ~compiler ~interpreter testfile in
     name_from_file testfile, [test_case testname `Quick exec_test]
   in
   List.map to_test @@ testfiles_in_dir dir
