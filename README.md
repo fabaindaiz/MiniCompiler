@@ -59,7 +59,8 @@ Once written, tests can be executed with the relevant call to the Makefile (see 
  
 Given a source program in `prog.src`, you can run it using `dune exec bin/langi.exe prog.src`. You can also compile it using `dune exec bin/langc.exe -- prog.src` (see the manual with `--help` for more options).
 
-To execute your interpreter interactively, use `dune utop` in a terminal, and then load the interpreter (`open Compiler.Interp;;`)or the compiler (`open Compiler.Compile;;`).
+
+Remember that to execute your code interactively, use `dune utop` in a terminal, and then load the modules you want to interact with (e.g. `open Compiler.Interp;;`).
 
 ## Resources
 
