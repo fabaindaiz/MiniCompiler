@@ -11,12 +11,11 @@ let rec compile_expr (e : expr) : instruction list =
 let compile_prog : expr Fmt.t =
   fun fmt e ->
   let instrs = compile_expr e in
-  let instrs_asm = instrs @ [ IRet ] in
   let prelude ="
 section .text
 global our_code_starts_here
 our_code_starts_here:" in
-Fmt.pf fmt "%s@\n%a" prelude pp_instrs instrs_asm
+Fmt.pf fmt "%s@\n%a" prelude pp_instrs (instrs @ [ IRet ])
 
 
 let compile_src = 
