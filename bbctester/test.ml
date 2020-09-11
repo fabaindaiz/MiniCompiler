@@ -152,9 +152,10 @@ let make_test
       in
 
       let expected =
+        let i_interpret = CCString.find ~sub:"|INTERPRET" test.expected in
         match interpreter with
-        | Some interp when test.status = NoError && test.expected = "|INTERPRET" ->
-          NoError, interp test.src
+        | Some interp when test.status = NoError && i_interpret <> -1 ->
+          NoError, CCString.sub test.expected 0 (max (i_interpret - 1) 0) ^ interp test.src
         | _ -> test.status, test.expected
       in
 

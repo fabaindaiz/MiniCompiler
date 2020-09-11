@@ -10,4 +10,4 @@ let () =
     |> interp
     |> pp_value Fmt.stdout
   else
-    Printf.printf "usage: run.exe <filename>\n"
+    Printf.printf "usage: langi.exe <filename>\n"

@@ -1,8 +1,13 @@
 open Compiler.Compile
 
+(** Monadic operators
+ * The operators (let+), (let-), ... provides a simpler syntax
+ * for operations taking a continuation as a second parameter.
+ * For instance, the code [let+ x = e in kont] will desugar
+ * to (let+) e (fun x -> kont).
+ *)
 let (let*) x f = x f
 let (let+) = Result.bind
-
 
 
 let wrap_result (out, err, retcode) =
