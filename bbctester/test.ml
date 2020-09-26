@@ -113,13 +113,14 @@ let bin_format =
 let wrap_result (out, err, retcode) =
   if retcode = 0 then Ok () else Error (CTError, out ^ err)
 
-let clang runtime basefile =
-  wrap_result @@ CCUnix.call "clang -o %s.run %s %s.o" basefile runtime basefile
+let clang ~compile_flags runtime basefile =
+  wrap_result @@ CCUnix.call "clang %s -o %s.run %s %s.o" compile_flags basefile runtime basefile
 
 let nasm basefile =
   wrap_result @@ CCUnix.call "nasm -f %s -o %s.o %s.s" bin_format basefile basefile
 
 let make_test
+    ~compile_flags
     runtime
     ~(compiler:compiler)
     ~interpreter
@@ -139,7 +140,7 @@ let make_test
           with e -> Error (CTError, Printexc.to_string e)
         in
         let* () = nasm base in
-        let* () = clang runtime base in
+        let* () = clang ~compile_flags runtime base in
         let out, err, retcode = CCUnix.call ~env:(Array.of_list test.params) "./%s" exe in
         if retcode = 0 then
           Ok (process_output out)
@@ -173,10 +174,10 @@ let name_from_file filename =
   let open Filename in
   dirname filename ^ "::" ^ basename (chop_extension filename)
 
-let tests_from_dir ~runtime ~compiler ?interpreter dir =
+let tests_from_dir ?(compile_flags="-g") ~runtime ~compiler ?interpreter dir =
   let open Alcotest in
   let to_test testfile =
-    let testname, exec_test = make_test runtime ~compiler ~interpreter testfile in
+    let testname, exec_test = make_test ~compile_flags runtime ~compiler ~interpreter testfile in
     name_from_file testfile, [test_case testname `Quick exec_test]
   in
   List.map to_test @@ testfiles_in_dir dir
