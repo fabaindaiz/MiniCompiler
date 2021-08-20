@@ -48,7 +48,7 @@ let test_interp_compound () =
  * arguments in [run].
  * See the documentation at https://github.com/mirage/alcotest *)
 let () =
-  run "A Simple Interpreter"
+  run "Interp"
     [
       "parse", [
         test_case "A number" `Quick test_parse_int ;
