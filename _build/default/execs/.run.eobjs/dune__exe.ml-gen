@@ -1,6 +1,0 @@
-(** @canonical Dune__exe.Run *)
-module Run = Dune__exe__Run
-
-
-(** @canonical Dune__exe.Test *)
-module Test = Dune__exe__Test
