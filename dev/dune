@@ -1,4 +1,0 @@
-(library
- (name dev)
- (modules ast parse lib interp)
- (libraries containers))

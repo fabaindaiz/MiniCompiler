@@ -1,16 +1,13 @@
-open Dev.Ast
-open Dev.Parse
-open Dev.Interp
-open Dev.Lib
+open Compiler.Interp
 open Alcotest
 
 (* Testing arithmetic expression using the print function defined in Interp 
    and the default equality for comparison *)
 let exp : exp testable =
-  testable (fun oc e -> Format.fprintf oc "%s" (string_of_exp e)) (=)
+  testable pp_exp (=)
 
 let value : value testable =
-  testable (fun oc e -> Format.fprintf oc "%s" (string_of_val e)) (=)
+  testable pp_value (=)
 
 
 (* Tests for our [parse] function *)
