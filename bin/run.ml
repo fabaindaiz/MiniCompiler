@@ -1,12 +1,14 @@
-open Compiler.Interp
+open Dev.Parse
+open Dev.Interp
+open Dev.Lib
+open Printf
 
 let () =
   let args = Sys.argv in
   if Array.length args > 1 && Sys.file_exists args.(1)
   then
-    sexp_from_file args.(1)
-    |> parse
-    |> interp []
-    |> pp_value Fmt.stdout
+    let src = sexp_from_file args.(1) in
+    let res = interp [] (parse src) in
+    printf "%s\n" (string_of_val res)
   else
-    Printf.printf "usage: run.exe <filename>\n"
+    printf "usage: run.exe <filename>\n"
