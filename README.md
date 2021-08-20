@@ -7,4 +7,4 @@ eg.
 ```
 > git checkout entrega0
 ```
-
+and then work 

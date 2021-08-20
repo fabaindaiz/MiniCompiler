@@ -1,3 +1,0 @@
-; sample source file
-; run with `dune exec bin/run.exe prog.src`
-(+ 1 2)
