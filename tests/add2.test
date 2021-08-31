@@ -1,6 +1,0 @@
-NAME: add2
-DESCRIPTION: increments twice a number
-SRC:
-(add1 (add1 40))
-EXPECTED:
-|INTERPRET

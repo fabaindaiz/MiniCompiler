@@ -6,13 +6,19 @@ init:
 	dune build @check
 
 test:
-	dune exec bin/test.exe -- test '$(F)'
+	dune exec execs/test.exe -- test '$(F)'
 
 ctest:
-	dune exec bin/test.exe -- test '$(F)' -c
+	dune exec execs/test.exe -- test '$(F)' -c
+
+%.run: %.o rt/sys.c
+	clang -o $@ $(CFLAGS) rt/sys.c $<
+
+%.o: %.s
+	nasm -f $(BIN_FORMAT) -o $@ $<
 
 %.exe:
-	dune build bin/$@
+	dune build execs/$@
 
 clean: clean-tests
 	rm -Rf _build

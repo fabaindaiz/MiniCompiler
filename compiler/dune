@@ -1,4 +1,0 @@
-(library
- (name compiler)
- (modules parse asm expr interp compile)
- (libraries containers fmt))
