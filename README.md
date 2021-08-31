@@ -1,3 +1,5 @@
+# WARNING: THIS README.MD NEEDS TO BE UPDATED!
+
 # CDI-reference
 Starter code for compilers homework
 
