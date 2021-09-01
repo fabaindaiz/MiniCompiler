@@ -2,7 +2,6 @@ open Dev.Ast
 open Dev.Parse
 open Dev.Interp
 open Dev.Compile
-open Dev.Lib
 open Alcotest
 open Bbctester.Test
 open Printf
@@ -46,27 +45,29 @@ let test_interp_compound () =
     (interp (Prim2 (Add, Prim2 (Add, Num 3L, Num 5L), Num 12L)) empty_env)
     (NumV 20L)
 
-(* Entry point of tests *)
+(* OCaml tests: extend with your own tests *)
+let ocaml_tests = [
+  "parse", [
+    test_case "A number" `Quick test_parse_int ;
+    test_case "A variable" `Quick test_parse_var ;
+    test_case "A compound expression" `Quick test_parse_compound ;
+    test_case "An invalid s-expression" `Quick test_parse_error
+  ] ;
+  "interp", [
+    test_case "A number" `Quick test_interp_num ;
+    test_case "A variable" `Quick test_interp_var ;
+    test_case "A compound expression" `Quick test_interp_compound
+  ]
+]     
+
+(* Entry point of tester *)
 let () =
-  let ocaml_tests = [
-    "parse", [
-      test_case "A number" `Quick test_parse_int ;
-      test_case "A variable" `Quick test_parse_var ;
-      test_case "A compound expression" `Quick test_parse_compound ;
-      test_case "An invalid s-expression" `Quick test_parse_error
-    ] ;
-    "interp", [
-      test_case "A number" `Quick test_interp_num ;
-      test_case "A variable" `Quick test_interp_var ;
-      test_case "A compound expression" `Quick test_interp_compound
-    ] 
-  ] in
-  let bbctests = 
+  (* BBC tests: don't change the following, simply add .bbc files in the bbctests/ directory *)
+  let bbc_tests = 
     let compile_flags = Option.value (Sys.getenv_opt "CFLAGS") ~default:"-g" in
     let compiler : string -> out_channel -> unit = 
       fun s o -> fprintf o "%s" (compile (parse_exp (sexp_from_string s))) in
     let interpreter : string -> string = 
       fun s -> string_of_val (interp (parse_exp (sexp_from_string s)) empty_env) in
-    tests_from_dir ~compile_flags ~compiler ~interpreter ~runtime:"rt/sys.c" "tests" in
-  
-  run "Tests entrega 1" (ocaml_tests @ bbctests)
+    tests_from_dir ~compile_flags ~compiler ~interpreter ~runtime:"rt/sys.c" "bbctests" in
+  run "Tests entrega 1" (ocaml_tests @ bbc_tests)

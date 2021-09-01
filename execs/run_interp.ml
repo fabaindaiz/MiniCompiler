@@ -1,6 +1,5 @@
 open Dev.Parse
 open Dev.Interp
-open Dev.Lib
 open Printf
 
 let () =
