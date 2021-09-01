@@ -68,7 +68,7 @@ A test is built with the `check` function which takes the following parameters:
 Once written, tests can be executed with the relevant call to the Makefile (see above), or by calling
  `dune exec bin/tests.exe` potentially followed by `--` and arguments (for instance `dune exec bin/tests.exe -- --help` to access the documentation).
 
-There are a few example tests for the parser and interpreter in `execs/run_test.ml`. *You need to add your additional OCaml tests to this file.*
+There are a few example tests for the parser and interpreter in `execs/run_test.ml`. *You need to add your additional OCaml tests to this file (or define them in an auxiliar file/module, and import the corresponding module and add your tests to the `ocaml_tests` variable).*
 
 
 #### Black-box compiler tests
