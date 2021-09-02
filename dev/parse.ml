@@ -1,8 +1,7 @@
 (** Parser **)
-
 open Ast
 open Printf
-open CCSexp (* library for s-expressions *)
+open CCSexp
 
 let rec parse_exp (sexp : sexp) : expr =
   match sexp with
@@ -24,7 +23,6 @@ let rec parse_exp (sexp : sexp) : expr =
     | `Atom "&&" -> Prim2 (And, parse_exp e1, parse_exp e2)
     | `Atom "<=" -> Prim2 (Lte, parse_exp e1, parse_exp e2)
     | _ -> failwith (sprintf "Not a valid expr: %s" (to_string sexp)) )
-  (* TO BE COMPLETED *)
   | _ -> failwith (sprintf "Not a valid expr: %s" (to_string sexp))
 
 let sexp_from_file : string -> CCSexp.sexp =
