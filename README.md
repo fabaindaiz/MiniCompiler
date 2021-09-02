@@ -39,8 +39,14 @@ The root directory contains a `Makefile` that provides shortcuts to build and te
 - you can build the executables manually with `make <executable_name>.exe`. For instance, `make run_compile.exe` builds the compiler executable.
 
 - you can run the executables manually as follows:
-  * `make interp src=examples/prog.src`: runs the interpreter on the source file `examples/prog.src`, outputs the result
-  * `make compile src=examples/prog.src`: runs the compiler on the source file `examples/prog.src`, outputs the generated assembly code
+  * `make interp src=examples/prog.src`: builds/runs the interpreter on the source file `examples/prog.src`, outputs the result
+  * `make compile src=examples/prog.src`: builds/runs the compiler on the source file `examples/prog.src`, outputs the generated assembly code
+  * `make compile-run src=examples/prog.src`: builds/runs the compiler on the source file `examples/prog.src`, generates the program binary (`examples/prog.run`), and runs it.
+
+- you can also ask specific files to be built, eg.:
+  * `make examples/prog.s`: looks up `examples/prog.src`, compiles it, and generates the assembly file `examples/prog.s`
+  * `make examples/prog.o`: looks up `examples/prog.src`, compiles it, and generates the binary module `examples/prog.o` (unlinked)
+  * `make examples/prog.run`: looks up `examples/prog.src`, compiles it, assembles, links, and generates the binary executable `examples/prog.run`
 
 You can look at the makefile to see the underlying `dune` commands that are generated, and of course you can use `dune` directly if you find it more convenient.
 
