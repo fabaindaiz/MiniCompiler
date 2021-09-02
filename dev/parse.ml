@@ -8,7 +8,7 @@ let rec parse_exp (sexp : sexp) : expr =
   | `Atom "true" -> Bool true
   | `Atom "false" -> Bool false
   | `Atom s -> (
-    match Int64.of_string_opt s with Some n -> Num n | None -> Var s )
+    match Int64.of_string_opt s with Some n -> Num n | None -> Id s )
   | `List [eop; e] -> (
     match eop with 
     | `Atom "add1" -> Prim1 (Add1, parse_exp e)

@@ -38,12 +38,15 @@ let extend_env : string -> value -> env -> env =
 (* interpreter *)
 let rec interp expr env =
   match expr with
-  | Var x -> List.assoc x env
+  | Id x -> List.assoc x env
   | Num n -> NumV n
   | Bool b -> BoolV b
-  | Prim1 (Add1, e) -> liftIII ( Int64.add ) (NumV 1L) (interp e env)
-  | Prim2 (p, e1, e2) -> 
-    (match p with
+  | Prim1 (op, e) -> 
+    (match op with
+    | Add1 -> liftIII ( Int64.add ) (NumV 1L)
+    | Sub1 -> liftIII ( Int64.sub ) (NumV 1L)) (interp e env)
+  | Prim2 (op, e1, e2) -> 
+    (match op with
     | Add -> liftIII ( Int64.add ) 
     | And -> liftBBB ( && ) 
     | Lte -> liftIIB ( <= )) (interp e1 env) (interp e2 env)

@@ -20,12 +20,12 @@ let test_parse_int () =
   check exp "same int" (parse_exp (`Atom "5")) (Num 5L)
 
 let test_parse_var () =
-  check exp "same var" (parse_exp (`Atom "x")) (Var "x")
+  check exp "same var" (parse_exp (`Atom "x")) (Id "x")
 
 let test_parse_compound () =
   check exp "same expr"
     (parse_exp (`List [`Atom "+" ; `List [`Atom "+" ; `Atom "3"; `Atom "x"]; `Atom "7"]))
-    (Prim2 (Add, Prim2 (Add, Num 3L, Var "x"), Num 7L))
+    (Prim2 (Add, Prim2 (Add, Num 3L, Id "x"), Num 7L))
 
 let test_parse_error () =
   let sexp = `List [`Atom "foo"; `Atom "bar"] in
@@ -38,7 +38,7 @@ let test_interp_num () =
   check value "same int" (interp (Num 42L) empty_env) (NumV 42L)
 
 let test_interp_var () =
-  check value "same int" (interp (Var "x") ["x", NumV 7L]) (NumV 7L)
+  check value "same int" (interp (Id "x") ["x", NumV 7L]) (NumV 7L)
 
 let test_interp_compound () =
   check value "same int"
