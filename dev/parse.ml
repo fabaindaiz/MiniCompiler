@@ -20,7 +20,7 @@ let rec parse_exp (sexp : sexp) : expr =
       | `List [`Atom id; e] -> Let (id, parse_exp e, parse_exp e2)
       | _ -> failwith "parse error in let" )
     | `Atom "+" -> Prim2 (Add, parse_exp e1, parse_exp e2)
-    | `Atom "&&" -> Prim2 (And, parse_exp e1, parse_exp e2)
+    | `Atom "and" -> Prim2 (And, parse_exp e1, parse_exp e2)
     | `Atom "<=" -> Prim2 (Lte, parse_exp e1, parse_exp e2)
     | _ -> failwith (sprintf "Not a valid expr: %s" (to_string sexp)) )
   | `List [`Atom "if"; e1; e2; e3] -> If (parse_exp e1, parse_exp e2, parse_exp e3)

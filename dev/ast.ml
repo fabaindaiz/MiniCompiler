@@ -28,7 +28,7 @@ let rec string_of_expr(e : expr) : string =
   | Prim2 (op, e1, e2) -> sprintf "(%s %s %s)" 
     (match op with 
     | Add -> "+"
-    | And -> "&&"
+    | And -> "and"
     | Lte -> "<=") (string_of_expr e1) (string_of_expr e2)
   | Let (x, e1, e2) -> sprintf "(let (%s %s) %s)" x (string_of_expr e1) (string_of_expr e2) 
   | If (e1, e2, e3) -> sprintf "(if %s %s %s)" (string_of_expr e1) (string_of_expr e2) (string_of_expr e3)
