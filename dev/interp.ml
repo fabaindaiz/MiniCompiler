@@ -51,3 +51,7 @@ let rec interp expr env =
     | And -> liftBBB ( && ) 
     | Lte -> liftIIB ( <= )) (interp e1 env) (interp e2 env)
   | Let (x, e , b) -> interp b (extend_env x (interp e env) env)
+  | If (e1, e2, e3) -> 
+    (match (interp e1 env) with
+    | BoolV b -> if b then interp e2 env else interp e3 env
+    | _ -> failwith "runtime type error")
