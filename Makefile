@@ -1,3 +1,14 @@
+# Picked from https://stackoverflow.com/questions/714100/os-detecting-makefile
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+	BIN_FORMAT = elf64
+	CFLAGS ?= -z notext -g
+endif
+ifeq ($(UNAME_S),Darwin) # for mac
+	BIN_FORMAT = macho64
+	CFLAGS ?= -Wl,-no_pie
+endif
+
 F =  # nothing by default
 src = # nothing by default
 
@@ -15,6 +26,9 @@ ctest:
 compile: 
 	dune exec execs/run_compile.exe $(src)
 
+compile-run: $(subst .src,.run,$(src))
+	./$<
+
 interp: 
 	dune exec execs/run_interp.exe $(src)
 
@@ -23,6 +37,9 @@ interp:
 
 %.o: %.s
 	nasm -f $(BIN_FORMAT) -o $@ $<
+
+%.s: %.src 
+	dune exec execs/run_compile.exe $< > $@
 
 %.exe:
 	dune build execs/$@
