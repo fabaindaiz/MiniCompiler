@@ -3,4 +3,4 @@ DESCRIPTION: increments a number
 SRC:
 (add1 20)
 EXPECTED:
-|INTERPRET
+|ORACLE

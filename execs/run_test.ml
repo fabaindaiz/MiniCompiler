@@ -67,7 +67,7 @@ let () =
     let compile_flags = Option.value (Sys.getenv_opt "CFLAGS") ~default:"-g" in
     let compiler : string -> out_channel -> unit = 
       fun s o -> fprintf o "%s" (compile (parse_exp (sexp_from_string s))) in
-    let interpreter : string -> string = 
-      fun s -> string_of_val (interp (parse_exp (sexp_from_string s)) empty_env) in
-    tests_from_dir ~compile_flags ~compiler ~interpreter ~runtime:"rt/sys.c" "bbctests" in
+    let oracle : string -> status * string = 
+      fun s -> NoError , string_of_val (interp (parse_exp (sexp_from_string s)) empty_env) in
+    tests_from_dir ~compile_flags ~compiler ~oracle ~runtime:"rt/sys.c" "bbctests" in
   run "Tests entrega 1" (ocaml_tests @ bbc_tests)
