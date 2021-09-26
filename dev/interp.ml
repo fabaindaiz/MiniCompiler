@@ -43,8 +43,8 @@ let rec interp expr env =
   | Bool b -> BoolV b
   | Prim1 (op, e) -> 
     (match op with
-    | Add1 -> liftIII ( Int64.add ) (NumV 1L)
-    | Sub1 -> liftIII ( Int64.sub ) (NumV 1L)) (interp e env)
+    | Add1 -> liftIII ( Int64.add )
+    | Sub1 -> liftIII ( Int64.sub )) (interp e env) (NumV 1L)
   | Prim2 (op, e1, e2) -> 
     (match op with
     | Add -> liftIII ( Int64.add ) 
