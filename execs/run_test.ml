@@ -42,7 +42,7 @@ let test_interp_var () =
 
 let test_interp_compound () =
   check value "same int"
-    (interp (Prim2 (Add, Prim2 (Add, Num 3L, Num 5L), Num 12L)) empty_env)
+    (interp (Prim2 (Add, Prim2 (Add, Num 3L, (Prim1 (Sub1, Num 6L))), Num 12L)) empty_env)
     (NumV 20L)
 
 (* OCaml tests: extend with your own tests *)
