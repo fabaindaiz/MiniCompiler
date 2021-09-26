@@ -3,4 +3,4 @@ DESCRIPTION: evaluates a number
 SRC:
 20
 EXPECTED:
-|INTERPRET
+|ORACLE

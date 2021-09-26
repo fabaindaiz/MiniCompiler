@@ -3,4 +3,4 @@ DESCRIPTION: evaluates a boolean
 SRC:
 true
 EXPECTED:
-|INTERPRET
+|ORACLE
