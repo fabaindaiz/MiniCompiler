@@ -30,7 +30,7 @@ let test_parse_compound () =
 let test_parse_error () =
   let sexp = `List [`Atom "foo"; `Atom "bar"] in
   check_raises "Should raise failwith" 
-    (Failure (Fmt.strf "Not a valid expr: %a" CCSexp.pp sexp))
+    (Failure (Fmt.str "Not a valid expr: %a" CCSexp.pp sexp))
     (fun () -> ignore @@ parse_exp sexp)
 
 (* Tests for our [interp] function *)
