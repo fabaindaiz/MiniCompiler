@@ -13,6 +13,8 @@ type arg =
 type instruction =
 | IRet
 | IMov of arg * arg
+| Inc of arg
+| Dec of arg
 (* TO BE COMPLETED *)
 
 let pp_reg reg : string =
@@ -28,6 +30,8 @@ let pp_instr instr : string =
   match instr with
   | IRet -> "  ret" 
   | IMov (a1, a2) -> sprintf "  mov %s, %s" (pp_arg a1) (pp_arg a2)
+  | Inc (a) -> sprintf "  inc %s" (pp_arg a)
+  | Dec (a) -> sprintf "  dec %s" (pp_arg a)
   (* TO BE COMPLETED *)
 
 let pp_instrs (instrs : instruction list) : string =
