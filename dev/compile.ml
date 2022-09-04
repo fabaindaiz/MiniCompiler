@@ -1,18 +1,29 @@
 open Ast
 open Asm
 
-let rec compile_expr (e : expr) : instruction list =
+type reg_env = (string * reg) list
+let empty_regenv : reg_env = []
+let extend_regenv : string -> reg -> reg_env -> reg_env =
+  fun x v env -> (x, v) :: env
+
+let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction list =
   match e with 
   | Num n -> [ IMov (Reg RAX, Const n) ] 
   | Prim1 (op, e) -> let inst =
     (match op with
     | Add1 -> Inc (Reg RAX)
     | Sub1 -> Dec (Reg RAX)) in 
-      (compile_expr e) @ [inst]
+      (compile_expr e env var_count) @ [inst]
+  | Id s -> [ IMov (Reg RAX, Reg (List.assoc s env))] (* mueve valor desde la pila a RAX *)
+  | Let (id, e, body) -> 
+      (compile_expr e env var_count) @ (* se extrae valor de e y queda en RAX *)
+      [IMov (Reg (RSP var_count), Reg RAX)] @ (* se pasa el valor de RAX a la direccion RSP disponible *)
+      (compile_expr body (extend_regenv id (RSP var_count) env) (var_count + 1)) (* se compila body con nuevo env *)
   | _ -> failwith "TO BE DONE!"
 
 let compile e : string =
-  let instrs = compile_expr e in
+  (* variables parten colocandose desde RSP - 8*1 *)
+  let instrs = compile_expr e empty_regenv 1 in 
   let prelude ="
 section .text
 global our_code_starts_here
