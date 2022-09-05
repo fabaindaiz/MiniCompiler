@@ -10,12 +10,15 @@ type arg =
 | Const of int64
 | Reg of reg
 
+type iprim2 = IAdd
+
 (* asm instructions *)
 type instruction =
 | IRet
 | IMov of arg * arg
 | Inc of arg
 | Dec of arg
+| IPrim2 of iprim2 * arg * arg
 (* TO BE COMPLETED *)
 
 let pp_reg reg : string =
@@ -34,7 +37,18 @@ let pp_instr instr : string =
   | IMov (a1, a2) -> sprintf "  mov %s, %s" (pp_arg a1) (pp_arg a2)
   | Inc (a) -> sprintf "  inc %s" (pp_arg a)
   | Dec (a) -> sprintf "  dec %s" (pp_arg a)
+  | IPrim2 (op, a1, a2) -> sprintf
+  (match op with
+    IAdd -> "  add %s, %s") (pp_arg a1) (pp_arg a2) (* assuming a1 and a2 both registers for now *)
+
   (* TO BE COMPLETED *)
 
 let pp_instrs (instrs : instruction list) : string =
   List.fold_left (fun res i -> res ^ "\n" ^ (pp_instr i)) "" instrs
+
+(* gensym for adding *)
+  let gensym =
+    let counter = ref 0 in
+    (fun basename ->
+      counter := !counter + 1;
+      sprintf "%s_%d" basename !counter);;
