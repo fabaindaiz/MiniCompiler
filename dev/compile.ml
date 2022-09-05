@@ -1,18 +1,32 @@
 open Ast
 open Asm
 
+(* data structure to attach registers to variables *)
 type reg_env = (string * reg) list
 let empty_regenv : reg_env = []
 let extend_regenv : string -> reg -> reg_env -> reg_env =
   fun x v env -> (x, v) :: env
 
+(* constants *)
+let min_int = Int64.div Int64.min_int 2L
+let max_int = Int64.div Int64.max_int 2L
+let int_tag = 0L
+let bool_tag = 1L
+let val_true = Int64.add Int64.min_int bool_tag (* 10..01*)
+let val_false = bool_tag (* 00..01*)
 let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction list =
   match e with 
-  | Num n -> [ IMov (Reg RAX, Const n) ] 
+  | Num n -> 
+    if n > max_int || n < min_int then
+      failwith ("Integer overflow: " ^ (Int64.to_string n))
+    else
+      [ IMov (Reg RAX, Const (Int64.shift_left n 1)) ] 
+  | Bool b -> let val_rep = (if b then val_true else val_false) in
+      [ IMov (Reg RAX, Const (val_rep)) ] 
   | Prim1 (op, e) -> let inst =
     (match op with
-    | Add1 -> Inc (Reg RAX)
-    | Sub1 -> Dec (Reg RAX)) in 
+    | Add1 -> IPrim2 (IAdd, (Reg RAX), Const 2L)
+    | Sub1 -> IPrim2 (IAdd, (Reg RAX), Const (-2L))) in 
       (compile_expr e env var_count) @ [inst]
   | Id s -> [ IMov (Reg RAX, Reg (List.assoc s env))] (* mueve valor desde la pila a RAX *)
   | Let (id, e, body) -> 
