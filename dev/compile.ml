@@ -25,8 +25,8 @@ let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction 
       [ IMov (Reg RAX, Const (val_rep)) ] 
   | Prim1 (op, e) -> let inst =
     (match op with
-    | Add1 -> IPrim2 (IAdd, (Reg RAX), Const 2L)
-    | Sub1 -> IPrim2 (IAdd, (Reg RAX), Const (-2L))) in 
+    | Add1 -> IAdd ((Reg RAX), Const 2L)
+    | Sub1 -> IAdd ((Reg RAX), Const (-2L))) in 
       (compile_expr e env var_count) @ [inst]
   | Id s -> [ IMov (Reg RAX, Reg (List.assoc s env))] (* mueve valor desde la pila a RAX *)
   | Let (id, e, body) -> 
@@ -34,14 +34,20 @@ let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction 
       [IMov (Reg (RSP var_count), Reg RAX)] @ (* se pasa el valor de RAX a la direccion RSP disponible *)
       (compile_expr body (extend_regenv id (RSP var_count) env) (var_count + 1)) (* se compila body con nuevo env *)
   | Prim2 (op, e1, e2) -> 
-    let iop =
-      (match op with
-      | Add -> IAdd
-      | _ -> failwith "TO BE DONE!") in
         (compile_expr e1 env var_count) @ (* set value of 1 expr in RAX *)
         [IMov (Reg (RSP var_count), Reg RAX)] @ (* moves value to stack *)
         (compile_expr e2 env (var_count + 1)) @ (* solve e2 with var_count offset *)
-        [IPrim2 (iop, Reg RAX, Reg (RSP var_count))] (* operates value saved in stack with prev value and sets it in RAX*)
+      (match op with
+      | Add -> [IAdd (Reg RAX, Reg (RSP var_count))] (* operates value saved in stack with prev value and sets it in RAX*)
+      | And -> [IAnd (Reg RAX, Reg (RSP var_count))]
+      | Lte -> let labeltrue = gensym("ltetrue") in let labeldone = gensym("ltedone") in
+        [Cmp (Reg (RSP var_count), Reg RAX)] @
+        [Jle labeltrue] @ (* if true jumps to label true *)
+        [IMov (Reg RAX, Const val_false)] @ (* if not moves val false to RAX*)
+        [Jmp labeldone] @ (* ends *)
+        [Label labeltrue; IMov (Reg RAX, Const val_true)] @(* true branch *)
+        [Label labeldone])
+         (* operates value saved in stack with prev value and sets it in RAX*)
   | _ -> failwith "TO BE DONE!"
 
 let compile e : string =

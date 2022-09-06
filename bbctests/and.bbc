@@ -1,0 +1,6 @@
+NAME: and
+DESCRIPTION: increments a number
+SRC:
+(and true false)
+EXPECTED:
+false

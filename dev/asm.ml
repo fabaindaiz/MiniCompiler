@@ -10,15 +10,18 @@ type arg =
 | Const of int64
 | Reg of reg
 
-type iprim2 = IAdd
-
 (* asm instructions *)
 type instruction =
 | IRet
 | IMov of arg * arg
 | Inc of arg
 | Dec of arg
-| IPrim2 of iprim2 * arg * arg
+| IAdd of arg * arg
+| IAnd of arg * arg
+| Jle of string
+| Jmp of string
+| Label of string
+| Cmp of arg * arg
 (* TO BE COMPLETED *)
 
 let pp_reg reg : string =
@@ -37,18 +40,22 @@ let pp_instr instr : string =
   | IMov (a1, a2) -> sprintf "  mov %s, %s" (pp_arg a1) (pp_arg a2)
   | Inc (a) -> sprintf "  inc %s" (pp_arg a)
   | Dec (a) -> sprintf "  dec %s" (pp_arg a)
-  | IPrim2 (op, a1, a2) -> sprintf
-  (match op with
-    IAdd -> "  add %s, %s") (pp_arg a1) (pp_arg a2) (* assuming a1 and a2 both registers for now *)
+  | IAdd (a1, a2) -> sprintf "  add %s, %s" (pp_arg a1) (pp_arg a2) (* assuming a1 and a2 both registers for now *)
+  | IAnd (a1, a2) -> sprintf "  and %s, %s" (pp_arg a1) (pp_arg a2) 
+  | Cmp (a1, a2) -> sprintf "  cmp %s, %s" (pp_arg a1) (pp_arg a2)
+  | Jle (s) -> sprintf "  jle %s" s
+  | Jmp (s) -> sprintf "  jmp %s" s
+  | Label s -> sprintf "%s:" s
+   
 
   (* TO BE COMPLETED *)
 
 let pp_instrs (instrs : instruction list) : string =
   List.fold_left (fun res i -> res ^ "\n" ^ (pp_instr i)) "" instrs
 
-(* gensym for adding *)
-  let gensym =
-    let counter = ref 0 in
-    (fun basename ->
-      counter := !counter + 1;
-      sprintf "%s_%d" basename !counter);;
+(* gensym for something *)
+let gensym =
+  let counter = ref 0 in
+  (fun basename ->
+    counter := !counter + 1;
+    sprintf "%s_%d" basename !counter);;
