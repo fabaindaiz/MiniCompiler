@@ -11,7 +11,7 @@ const VAL BOOL_TRUE  = 0x8000000000000001; // These must be the same values
 const VAL BOOL_FALSE = 0x0000000000000001; // as chosen in compile.ml
 VAL print(VAL val) {
   if ((val & BOOL_TAG) == 0) { // val is even ==> number
-    printf("%ld", ((uint64_t)(val)) / 2); // shift bits right to remove tag
+    printf("%ld", ((int64_t)(val)) / 2); // shift bits right to remove tag
   } else if (val == BOOL_TRUE) {
     printf("true");
   } else if (val == BOOL_FALSE) {

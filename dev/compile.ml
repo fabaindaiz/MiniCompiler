@@ -41,7 +41,7 @@ let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction 
         (compile_expr e1 env var_count) @ (* set value of 1 expr in RAX *)
         [IMov (Reg (RSP var_count), Reg RAX)] @ (* moves value to stack *)
         (compile_expr e2 env (var_count + 1)) @ (* solve e2 with var_count offset *)
-        [IPrim2 (iop, Reg RAX, Reg (RSP var_count))] (* adds value saved in stack with prev value and sets it in RAX*)
+        [IPrim2 (iop, Reg RAX, Reg (RSP var_count))] (* operates value saved in stack with prev value and sets it in RAX*)
   | _ -> failwith "TO BE DONE!"
 
 let compile e : string =
