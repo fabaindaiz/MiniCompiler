@@ -13,6 +13,7 @@ let rec parse_exp (sexp : sexp) : expr =
     match eop with 
     | `Atom "add1" -> Prim1 (Add1, parse_exp e)
     | `Atom "sub1" -> Prim1 (Sub1, parse_exp e)
+    | `Atom "not" -> Prim1 (Not, parse_exp e)
     | _ -> failwith (sprintf "Not a valid expr: %s" (to_string sexp)) )
   | `List [eop; e1; e2] -> (
     match eop with
@@ -21,8 +22,16 @@ let rec parse_exp (sexp : sexp) : expr =
       | `List [`Atom id; e] -> Let (id, parse_exp e, parse_exp e2)
       | _ -> failwith "parse error in let" )
     | `Atom "+" -> Prim2 (Add, parse_exp e1, parse_exp e2)
+    | `Atom "-" -> Prim2 (Sub, parse_exp e1, parse_exp e2)
+    | `Atom "*" -> Prim2 (Mul, parse_exp e1, parse_exp e2)
+    | `Atom "/" -> Prim2 (Div, parse_exp e1, parse_exp e2)
     | `Atom "and" -> Prim2 (And, parse_exp e1, parse_exp e2)
+    | `Atom "<" -> Prim2 (Lt, parse_exp e1, parse_exp e2)
+    | `Atom ">" -> Prim2 (Gt, parse_exp e1, parse_exp e2)
     | `Atom "<=" -> Prim2 (Lte, parse_exp e1, parse_exp e2)
+    | `Atom ">=" -> Prim2 (Gte, parse_exp e1, parse_exp e2)
+    | `Atom "=" -> Prim2 (Eq, parse_exp e1, parse_exp e2)
+    | `Atom "!=" -> Prim2 (Neq, parse_exp e1, parse_exp e2)
     | _ -> failwith (sprintf "Not a valid expr: %s" (to_string sexp)) )
   | `List [`Atom "if"; e1; e2; e3] -> If (parse_exp e1, parse_exp e2, parse_exp e3)
   | _ -> failwith (sprintf "Not a valid expr: %s" (to_string sexp))

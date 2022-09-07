@@ -14,6 +14,7 @@ let int_tag = 0L
 let bool_tag = 1L
 let val_true = Int64.add Int64.min_int bool_tag (* 10..01*)
 let val_false = bool_tag (* 00..01*)
+
 let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction list =
   match e with 
   | Num n -> 
@@ -41,12 +42,12 @@ let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction 
       | Add -> [IAdd (Reg RAX, Reg (RSP var_count))] (* operates value saved in stack with prev value and sets it in RAX*)
       | And -> [IAnd (Reg RAX, Reg (RSP var_count))]
       | Lte -> let labeltrue = gensym("ltetrue") in let labeldone = gensym("ltedone") in
-        [Cmp (Reg (RSP var_count), Reg RAX)] @
-        [Jle labeltrue] @ (* if true jumps to label true *)
+        [ICmp (Reg (RSP var_count), Reg RAX)] @
+        [IJle labeltrue] @ (* if true jumps to label true *)
         [IMov (Reg RAX, Const val_false)] @ (* if not moves val false to RAX*)
-        [Jmp labeldone] @ (* ends *)
-        [Label labeltrue; IMov (Reg RAX, Const val_true)] @(* true branch *)
-        [Label labeldone])
+        [IJmp labeldone] @ (* ends *)
+        [ILabel labeltrue; IMov (Reg RAX, Const val_true)] @(* true branch *)
+        [ILabel labeldone])
          (* operates value saved in stack with prev value and sets it in RAX*)
   | _ -> failwith "TO BE DONE!"
 
