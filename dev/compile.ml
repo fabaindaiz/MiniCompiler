@@ -53,7 +53,7 @@ let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction 
     | Add -> [IAdd (Reg RAX, Reg (RSP var_count))] (* operates value saved in stack with prev value and sets it in RAX*)
     | Sub -> [ISub (Reg RAX, Reg (RSP var_count))]
     | Mul -> [IMul (Reg RAX, Reg (RSP var_count))] @ [ ISar (Reg RAX, Const 1L) ]
-    | Div -> [IDiv (Reg RAX, Reg (RSP var_count))] @ [ ISal (Reg RAX, Const 1L) ]
+    | Div -> [IDiv (Reg (RSP var_count))] @ [ ISal (Reg RAX, Const 1L) ]
     | And -> [IAnd (Reg RAX, Reg (RSP var_count))]
     | Or -> [IOr (Reg RAX, Reg (RSP var_count))]
     | Lte -> condition ([IJle jump_label])

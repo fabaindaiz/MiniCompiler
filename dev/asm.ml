@@ -16,7 +16,7 @@ type instruction =
 | IAdd of arg * arg (* Increment the left-hand arg by the value of the right-hand arg *)
 | ISub of arg * arg
 | IMul of arg * arg
-| IDiv of arg * arg
+| IDiv of arg
 | IAnd of arg * arg
 | IOr of arg * arg
 | IXor of arg * arg
@@ -51,7 +51,7 @@ let pp_instr instr : string =
   | IAdd (a1, a2) -> sprintf "  add %s, %s" (pp_arg a1) (pp_arg a2)
   | ISub (a1, a2) -> sprintf "  sub %s, %s" (pp_arg a1) (pp_arg a2)
   | IMul (a1, a2) -> sprintf "  imul %s, %s" (pp_arg a1) (pp_arg a2)
-  | IDiv (a1, a2) -> sprintf "  div %s, %s" (pp_arg a1) (pp_arg a2)
+  | IDiv (a2) -> sprintf "  mov RDX, 0\n  idiv qword %s" (pp_arg a2)
   | IAnd (a1, a2) -> sprintf "  and %s, %s" (pp_arg a1) (pp_arg a2)
   | IOr (a1, a2) -> sprintf "  or %s, %s" (pp_arg a1) (pp_arg a2)
   | IXor (a1, a2) -> sprintf "  xor %s, %s" (pp_arg a1) (pp_arg a2)
