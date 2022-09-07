@@ -50,7 +50,7 @@ let pp_instr instr : string =
   | IMov (a1, a2) -> sprintf "  mov %s, %s" (pp_arg a1) (pp_arg a2)
   | IAdd (a1, a2) -> sprintf "  add %s, %s" (pp_arg a1) (pp_arg a2)
   | ISub (a1, a2) -> sprintf "  sub %s, %s" (pp_arg a1) (pp_arg a2)
-  | IMul (a1, a2) -> sprintf "  mul %s, %s" (pp_arg a1) (pp_arg a2)
+  | IMul (a1, a2) -> sprintf "  imul %s, %s" (pp_arg a1) (pp_arg a2)
   | IDiv (a1, a2) -> sprintf "  div %s, %s" (pp_arg a1) (pp_arg a2)
   | IAnd (a1, a2) -> sprintf "  and %s, %s" (pp_arg a1) (pp_arg a2)
   | IOr (a1, a2) -> sprintf "  or %s, %s" (pp_arg a1) (pp_arg a2)
