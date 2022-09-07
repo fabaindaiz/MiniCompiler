@@ -3,6 +3,7 @@ open Printf
 (* registers *)
 type reg = 
 | RAX
+| RBX
 | RSP of int (* integer is multiplied by 8 after *)
 
 (* arguments for instructions *)
@@ -38,6 +39,7 @@ type instruction =
 let pp_reg reg : string =
   match reg with
   | RAX -> "RAX"
+  | RBX -> "RBX"
   | RSP n -> sprintf "[RSP - %d]" (n * 8)
 
 let pp_arg arg : string =

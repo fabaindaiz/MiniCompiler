@@ -26,6 +26,7 @@ let rec parse_exp (sexp : sexp) : expr =
     | `Atom "*" -> Prim2 (Mul, parse_exp e1, parse_exp e2)
     | `Atom "/" -> Prim2 (Div, parse_exp e1, parse_exp e2)
     | `Atom "and" -> Prim2 (And, parse_exp e1, parse_exp e2)
+    | `Atom "or" -> Prim2 (Or, parse_exp e1, parse_exp e2)
     | `Atom "<" -> Prim2 (Lt, parse_exp e1, parse_exp e2)
     | `Atom ">" -> Prim2 (Gt, parse_exp e1, parse_exp e2)
     | `Atom "<=" -> Prim2 (Lte, parse_exp e1, parse_exp e2)

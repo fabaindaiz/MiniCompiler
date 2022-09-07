@@ -30,8 +30,8 @@ let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction 
     | Add1 -> [IAdd ((Reg RAX), Const 2L)]
     | Sub1 -> [IAdd ((Reg RAX), Const (-2L))]
     | Not -> 
-      [ IMov (Reg (RSP (var_count)), Const bool_mask) ] @
-      [ IXor (Reg RAX, Reg (RSP var_count)) ]) in 
+      [ IMov (Reg RBX, Const bool_mask) ] @
+      [ IXor (Reg RAX, Reg RBX) ]) in 
       (compile_expr e env var_count) @ insts
   | Id s -> [ IMov (Reg RAX, Reg (List.assoc s env))] (* mueve valor desde la pila a RAX *)
   | Let (id, e, body) -> 
@@ -39,23 +39,29 @@ let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction 
       [IMov (Reg (RSP var_count), Reg RAX)] @ (* se pasa el valor de RAX a la direccion RSP disponible *)
       (compile_expr body (extend_regenv id (RSP var_count) env) (var_count + 1)) (* se compila body con nuevo env *)
   | Prim2 (op, e1, e2) -> 
-      (* prelude *)
+    let prelude =
       (compile_expr e2 env var_count) @ (* set value of e2 in RAX *)
       [IMov (Reg (RSP var_count), Reg RAX)] @ (* moves value to stack *)
-      (compile_expr e1 env (var_count + 1)) @ (* solve e1 with var_count offset *)
+      (compile_expr e1 env (var_count + 1))(* solve e1 with var_count offset *) in
 
     let jump_label = gensym "label" in
     let condition (inst : instruction list) : (instruction list) = (* to generate comparative functions*)
       [ ICmp (Reg RAX, Reg (RSP var_count))] @ (* compares values (left operand e1 in RAX) *)
       [ IMov (Reg RAX, Const val_true) ] @ inst @ (* preemptively sets false and check condition *)
       [ IMov (Reg RAX, Const val_false) ; ILabel(jump_label) ] in (* if true, overrides RAX *)
+
+    let lazy_eval (inst : instruction list) (icond_jmp : instruction) (value : int64): instruction list =
+      (compile_expr e2 env var_count) @ (* evalua un operando *) [IMov (Reg RBX, Const value)] @ (* no puedo comparar con imm64?? *)
+      [ICmp (Reg RAX, Reg RBX)] @ [icond_jmp] @ (* compara value con resultado y si se cumple termina *)
+      [IMov (Reg (RSP var_count), Reg RAX)] @ (* si no continua normal *)
+      (compile_expr e1 env (var_count + 1)) @ inst @ [ILabel jump_label] in
     (match op with
-    | Add -> [IAdd (Reg RAX, Reg (RSP var_count))] (* operates value saved in stack with prev value and sets it in RAX*)
-    | Sub -> [ISub (Reg RAX, Reg (RSP var_count))]
-    | Mul -> [IMul (Reg RAX, Reg (RSP var_count))] @ [ ISar (Reg RAX, Const 1L) ]
-    | Div -> [IDiv (Reg (RSP var_count))] @ [ ISal (Reg RAX, Const 1L) ]
-    | And -> [IAnd (Reg RAX, Reg (RSP var_count))]
-    | Or -> [IOr (Reg RAX, Reg (RSP var_count))]
+    | Add -> prelude @ [IAdd (Reg RAX, Reg (RSP var_count))] (* operates value saved in stack with prev value and sets it in RAX*)
+    | Sub -> prelude @ [ISub (Reg RAX, Reg (RSP var_count))]
+    | Mul -> prelude @ [IMul (Reg RAX, Reg (RSP var_count))] @ [ ISar (Reg RAX, Const 1L) ]
+    | Div -> prelude @ [IDiv (Reg (RSP var_count))] @ [ ISal (Reg RAX, Const 1L) ]
+    | And -> lazy_eval [IAnd (Reg RAX, Reg (RSP var_count))] (IJe jump_label) val_false
+    | Or -> lazy_eval [IOr (Reg RAX, Reg (RSP var_count))] (IJe jump_label) val_true
     | Lte -> condition ([IJle jump_label])
     | Gte -> condition ([IJge jump_label])
     | Lt -> condition ([IJl jump_label])

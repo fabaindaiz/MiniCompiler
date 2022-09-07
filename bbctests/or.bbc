@@ -1,0 +1,6 @@
+NAME: or
+DESCRIPTION: logic or
+SRC:
+(or false true)
+EXPECTED:
+true
