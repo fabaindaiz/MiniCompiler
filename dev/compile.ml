@@ -62,12 +62,12 @@ let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction 
     | Div -> prelude @ [IDiv (Reg (RSP var_count))] @ [ ISal (Reg RAX, Const 1L) ]
     | And -> lazy_eval [IAnd (Reg RAX, Reg (RSP var_count))] (IJe jump_label) val_false
     | Or -> lazy_eval [IOr (Reg RAX, Reg (RSP var_count))] (IJe jump_label) val_true
-    | Lte -> condition ([IJle jump_label])
-    | Gte -> condition ([IJge jump_label])
-    | Lt -> condition ([IJl jump_label])
-    | Gt -> condition ([IJg jump_label])
-    | Eq -> condition ([IJe jump_label])
-    | Neq -> condition ([IJne jump_label]))
+    | Lte -> prelude @ condition ([IJle jump_label])
+    | Gte -> prelude @ condition ([IJge jump_label])
+    | Lt -> prelude @ condition ([IJl jump_label])
+    | Gt -> prelude @ condition ([IJg jump_label])
+    | Eq -> prelude @ condition ([IJe jump_label])
+    | Neq -> prelude @ condition ([IJne jump_label]))
   | If (c, t, e) ->
       let else_label = gensym "if_label" in
       let done_label = gensym "done" in

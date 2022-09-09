@@ -1,5 +1,5 @@
 NAME: and
-DESCRIPTION: increments a number
+DESCRIPTION: a n d
 SRC:
 (and true false)
 EXPECTED:
