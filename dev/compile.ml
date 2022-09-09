@@ -71,7 +71,7 @@ let rec compile_expr (e : expr) (env : reg_env) (var_count : int) : instruction 
   | If (c, t, e) ->
       let else_label = gensym "if_label" in
       let done_label = gensym "done" in
-      (compile_expr c env var_count) @ [ ICmp(Reg RAX, Const val_true) ; IJe(else_label) ] @
+      (compile_expr c env var_count) @ [IMov (Reg RBX, Const val_true)] @ [ ICmp(Reg RAX, Reg RBX) ; IJe(else_label) ] @
       (compile_expr t env var_count) @ [ IJmp(done_label) ; ILabel(else_label) ] @
       (compile_expr e env var_count) @ [ ILabel(done_label) ]
 

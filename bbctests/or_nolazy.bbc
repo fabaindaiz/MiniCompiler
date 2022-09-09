@@ -1,0 +1,6 @@
+NAME: ornolaszy
+DESCRIPTION: logic or
+SRC:
+(or true (sub1 0))
+EXPECTED:
+Unknown value: ffffffffffffffff
