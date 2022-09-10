@@ -3,6 +3,7 @@ open Ast
 open Printf
 open CCSexp
 
+(* parse a CSSexp to an expresion *)
 let rec parse_exp (sexp : sexp) : expr =
   match sexp with
   | `Atom "true" -> Bool true
@@ -37,12 +38,14 @@ let rec parse_exp (sexp : sexp) : expr =
   | `List [`Atom "if"; e1; e2; e3] -> If (parse_exp e1, parse_exp e2, parse_exp e3)
   | _ -> failwith (sprintf "Not a valid expr: %s" (to_string sexp))
 
+(* parse a program from a file *)
 let sexp_from_file : string -> CCSexp.sexp =
  fun filename ->
   match CCSexp.parse_file filename with
   | Ok s -> s
   | Error msg -> failwith (sprintf "Unable to parse file %s: %s" filename msg)
 
+(* parse a program from a string *)
 let sexp_from_string (src : string) : CCSexp.sexp =
   match CCSexp.parse_string src with
   | Ok s -> s

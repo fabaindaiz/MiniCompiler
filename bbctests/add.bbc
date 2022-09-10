@@ -1,4 +1,4 @@
-NAME: sum
+NAME: add
 DESCRIPTION: evaluates a nested sum
 SRC:
 (+ (+ 2 3) (+ 4 3))

@@ -2,14 +2,15 @@ open Printf
 
 (* registers *)
 type reg = 
-| RAX
+| RAX (* the register where we place answers *)
 | RBX
-| RSP of int (* integer is multiplied by 8 after *)
+| R11 (* temporary register *)
+| RSP of int (* the stack pointer, the integer offset is multiplied by 8 after *)
 
 (* arguments for instructions *)
 type arg =
-| Const of int64
-| Reg of reg
+| Const of int64 (* explicit numeric constants *)
+| Reg of reg (* any named and stack register *)
 
 (* asm instructions *)
 type instruction =
@@ -36,17 +37,21 @@ type instruction =
 | IJne of string (* Nequal *)
 | IRet
 
+(* registers to string *)
 let pp_reg reg : string =
   match reg with
   | RAX -> "RAX"
   | RBX -> "RBX"
+  | R11 -> "R11"
   | RSP n -> sprintf "[RSP - %d]" (n * 8)
 
+(* arguments for instruction to string *)
 let pp_arg arg : string =
   match arg with
   | Const n -> sprintf "%#Lx" n
   | Reg r -> pp_reg r
 
+(* asm instruction to string *)
 let pp_instr instr : string =
   match instr with
   | IMov (a1, a2) -> sprintf "  mov %s, %s" (pp_arg a1) (pp_arg a2)
@@ -72,11 +77,11 @@ let pp_instr instr : string =
   | IJne (s) -> sprintf "  jne %s" s
   | IRet -> sprintf "  ret"
 
-
+(* asm instruction list to string *)
 let pp_instrs (instrs : instruction list) : string =
   List.fold_left (fun res i -> res ^ "\n" ^ (pp_instr i)) "" instrs
 
-(* gensym for something *)
+(* gensym for string labels *)
 let gensym =
   let counter = ref 0 in
   (fun basename ->

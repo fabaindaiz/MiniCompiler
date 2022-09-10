@@ -3,7 +3,10 @@ open Asm
 
 (* data structure to attach registers to variables *)
 type reg_env = (string * reg) list
+
 let empty_regenv : reg_env = []
+
+(* extends a register enviroment *)
 let extend_regenv : string -> reg -> reg_env -> reg_env =
   fun x v env -> (x, v) :: env
 
@@ -79,6 +82,7 @@ let rec compile_expr (e : expr) (env : reg_env) (reg_offset : int) : instruction
       (compile_expr t env reg_offset) @ [ IJmp(done_label) ; ILabel(else_label) ] @
       (compile_expr e env reg_offset) @ [ ILabel(done_label) ]
 
+(* compilation pipeline *)
 let compile e : string =
   (* variables parten colocandose desde RSP - 8*1 *)
   let instrs = compile_expr e empty_regenv 1 in 
