@@ -33,8 +33,8 @@ let rec compile_expr (e : expr) (env : reg_env) (reg_offset : int) : instruction
     | Add1 -> [IAdd ((Reg RAX), Const 2L)]
     | Sub1 -> [IAdd ((Reg RAX), Const (-2L))]
     | Not -> 
-      [ IMov (Reg RBX, Const bool_mask) ] @
-      [ IXor (Reg RAX, Reg RBX) ]) in 
+      [ IMov (Reg R11, Const bool_mask) ] @
+      [ IXor (Reg RAX, Reg R11) ]) in 
       (compile_expr e env reg_offset) @ insts
   | Id s -> [ IMov (Reg RAX, Reg (List.assoc s env))] (* mueve valor desde la pila a RAX *)
   | Let (id, e, body) -> 
@@ -42,13 +42,13 @@ let rec compile_expr (e : expr) (env : reg_env) (reg_offset : int) : instruction
       [IMov (Reg (RSP reg_offset), Reg RAX)] @ (* se pasa el valor de RAX a la direccion RSP disponible *)
       (compile_expr body (extend_regenv id (RSP reg_offset) env) (reg_offset + 1)) (* se compila body con nuevo env *)
   | Prim2 (op, e1, e2) -> 
+    (* prelude to no-lazy binary primitives *)
     let prelude =
       (compile_expr e2 env reg_offset) @ (* set value of e2 in RAX *)
       [IMov (Reg (RSP reg_offset), Reg RAX)] @ (* moves value to stack *)
       (compile_expr e1 env (reg_offset + 1))(* solve e1 with reg_offset *) in
 
     let jump_label = gensym "label" in (* generates unique label *)
-
     (* to generate comparative operations*)
     let condition (inst : instruction list) : (instruction list) = 
       [ ICmp (Reg RAX, Reg (RSP reg_offset))] @ (* compares values (left operand e1 in RAX) *)
@@ -58,10 +58,11 @@ let rec compile_expr (e : expr) (env : reg_env) (reg_offset : int) : instruction
     (* if after computing one operand the result is equal to value, doesn't compute second value and mantains result 
     else compute inst as normal *)
     let lazy_eval (inst : instruction list) (value : int64): instruction list =
-      (compile_expr e2 env reg_offset) @ (* evalua un operando *) [IMov (Reg RBX, Const value)] @ (* no puedo comparar con imm64?? *)
-      [ICmp (Reg RAX, Reg RBX)] @ [IJe jump_label] @ (* compara value con resultado y si es igual termina *)
+      (compile_expr e2 env reg_offset) @ (* evalua un operando *) [IMov (Reg R11, Const value)] @ (* no puedo comparar con imm64?? *)
+      [ICmp (Reg RAX, Reg R11)] @ [IJe jump_label] @ (* compara value con resultado y si es igual termina *)
       [IMov (Reg (RSP reg_offset), Reg RAX)] @ (* si no continua normal *)
       (compile_expr e1 env (reg_offset + 1)) @ inst @ [ILabel jump_label] in
+    
     (match op with
     | Add -> prelude @ [IAdd (Reg RAX, Reg (RSP reg_offset))] (* operates value saved in stack with prev value and sets it in RAX*)
     | Sub -> prelude @ [ISub (Reg RAX, Reg (RSP reg_offset))]
@@ -78,7 +79,7 @@ let rec compile_expr (e : expr) (env : reg_env) (reg_offset : int) : instruction
   | If (c, t, e) ->
       let else_label = gensym "if_label" in
       let done_label = gensym "done" in
-      (compile_expr c env reg_offset) @ [IMov (Reg RBX, Const val_true)] @ [ ICmp(Reg RAX, Reg RBX) ; IJne(else_label) ] @
+      (compile_expr c env reg_offset) @ [IMov (Reg R11, Const val_true)] @ [ ICmp(Reg RAX, Reg R11) ; IJne(else_label) ] @
       (compile_expr t env reg_offset) @ [ IJmp(done_label) ; ILabel(else_label) ] @
       (compile_expr e env reg_offset) @ [ ILabel(done_label) ]
 
