@@ -1,3 +1,4 @@
+(** Compiler **)
 open Ast
 open Asm
 
@@ -6,9 +7,22 @@ type reg_env = (string * reg) list
 
 let empty_regenv : reg_env = []
 
-(* extends a register enviroment *)
-let extend_regenv : string -> reg -> reg_env -> reg_env =
-  fun x v env -> (x, v) :: env
+
+(* Esto permite quitar el reg_offset como párametro de compile_expr *)
+
+(* Obtiene el offset de la variable actual*)
+let get_offset (env : reg_env) : int =
+  1 + (List.length env)
+
+(* extiende el ambiente con una variable del usuario *)
+let extend_regenv (x : string) (env : reg_env) : (reg_env * int) =
+  let reg_offset = (get_offset env) in
+  ((x, (RSP reg_offset)) :: env, reg_offset)
+
+(* extiende el ambiente con una variable interna *)
+let extend_regenv_t (env : reg_env) : (reg_env * int) =
+  (extend_regenv (gensym "temp") env)
+
 
 (* constants *)
 let min_int = Int64.div Int64.min_int 2L
@@ -19,7 +33,7 @@ let bool_mask = 0x8000000000000000L
 let val_true = Int64.add Int64.min_int bool_tag (* 10..01*)
 let val_false = bool_tag (* 00..01*)
 
-let rec compile_expr (e : expr) (env : reg_env) (reg_offset : int) : instruction list =
+let rec compile_expr (e : expr) (env : reg_env) : instruction list =
   match e with 
   | Num n -> 
     if n > max_int || n < min_int then
@@ -35,22 +49,25 @@ let rec compile_expr (e : expr) (env : reg_env) (reg_offset : int) : instruction
     | Not -> 
       [ IMov (Reg R11, Const bool_mask) ] @
       [ IXor (Reg RAX, Reg R11) ]) in 
-      (compile_expr e env reg_offset) @ insts
+      (compile_expr e env) @ insts
   | Id s -> [ IMov (Reg RAX, Reg (List.assoc s env))] (* mueve valor desde la pila a RAX *)
   | Let (id, e, body) -> 
-      (compile_expr e env reg_offset) @ (* se extrae valor de e y queda en RAX *)
+      let (env', reg_offset) = extend_regenv id env in
+      (compile_expr e env) @ (* se extrae valor de e y queda en RAX *)
       [IMov (Reg (RSP reg_offset), Reg RAX)] @ (* se pasa el valor de RAX a la direccion RSP disponible *)
-      (compile_expr body (extend_regenv id (RSP reg_offset) env) (reg_offset + 1)) (* se compila body con nuevo env *)
+      (compile_expr body env') (* se compila body con nuevo env *)
   | Prim2 (op, e1, e2) -> 
     (* prelude to no-lazy binary primitives *)
     let prelude =
-      (compile_expr e2 env reg_offset) @ (* set value of e2 in RAX *)
+      let (env', reg_offset) = extend_regenv_t env in
+      (compile_expr e2 env) @ (* set value of e2 in RAX *)
       [IMov (Reg (RSP reg_offset), Reg RAX)] @ (* moves value to stack *)
-      (compile_expr e1 env (reg_offset + 1))(* solve e1 with reg_offset *) in
+      (compile_expr e1 env')(* solve e1 with reg_offset *) in
 
     let jump_label = gensym "label" in (* generates unique label *)
     (* to generate comparative operations*)
-    let condition (inst : instruction list) : (instruction list) = 
+    let condition (inst : instruction list) : (instruction list) =
+      let (_, reg_offset) = extend_regenv_t env in 
       [ ICmp (Reg RAX, Reg (RSP reg_offset))] @ (* compares values (left operand e1 in RAX) *)
       [ IMov (Reg RAX, Const val_true) ] @ inst @ (* preemptively sets false and check condition *)
       [ IMov (Reg RAX, Const val_false) ; ILabel(jump_label) ] in (* if true, overrides RAX *)
@@ -58,11 +75,13 @@ let rec compile_expr (e : expr) (env : reg_env) (reg_offset : int) : instruction
     (* if after computing one operand the result is equal to value, doesn't compute second value and mantains result 
     else compute inst as normal *)
     let lazy_eval (inst : instruction list) (value : int64): instruction list =
-      (compile_expr e2 env reg_offset) @ (* evalua un operando *) [IMov (Reg R11, Const value)] @ (* no puedo comparar con imm64?? *)
+      let (env', reg_offset) = extend_regenv_t env in
+      (compile_expr e2 env) @ (* evalua un operando *) [IMov (Reg R11, Const value)] @ (* no puedo comparar con imm64?? *)
       [ICmp (Reg RAX, Reg R11)] @ [IJe jump_label] @ (* compara value con resultado y si es igual termina *)
       [IMov (Reg (RSP reg_offset), Reg RAX)] @ (* si no continua normal *)
-      (compile_expr e1 env (reg_offset + 1)) @ inst @ [ILabel jump_label] in
+      (compile_expr e1 env') @ inst @ [ILabel jump_label] in
     
+    let reg_offset = get_offset env in
     (match op with
     | Add -> prelude @ [IAdd (Reg RAX, Reg (RSP reg_offset))] (* operates value saved in stack with prev value and sets it in RAX*)
     | Sub -> prelude @ [ISub (Reg RAX, Reg (RSP reg_offset))]
@@ -79,14 +98,14 @@ let rec compile_expr (e : expr) (env : reg_env) (reg_offset : int) : instruction
   | If (c, t, e) ->
       let else_label = gensym "if_label" in
       let done_label = gensym "done" in
-      (compile_expr c env reg_offset) @ [IMov (Reg R11, Const val_true)] @ [ ICmp(Reg RAX, Reg R11) ; IJne(else_label) ] @
-      (compile_expr t env reg_offset) @ [ IJmp(done_label) ; ILabel(else_label) ] @
-      (compile_expr e env reg_offset) @ [ ILabel(done_label) ]
+      (compile_expr c env) @ [IMov (Reg R11, Const val_true)] @ [ ICmp(Reg RAX, Reg R11) ; IJne(else_label) ] @
+      (compile_expr t env) @ [ IJmp(done_label) ; ILabel(else_label) ] @
+      (compile_expr e env) @ [ ILabel(done_label) ]
 
 (* compilation pipeline *)
 let compile e : string =
   (* variables parten colocandose desde RSP - 8*1 *)
-  let instrs = compile_expr e empty_regenv 1 in 
+  let instrs = compile_expr e empty_regenv in 
   let prelude ="
 section .text
 global our_code_starts_here
