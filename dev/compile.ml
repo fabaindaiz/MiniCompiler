@@ -47,11 +47,11 @@ let rec compile_expr (e : tag expr) (env : reg_env) : instruction list =
       [ IXor (Reg RAX, Reg R11) ]) in 
       (compile_expr e env) @ insts
   | Prim2 (op, e1, e2, tag) -> 
-    (* prelude to no-lazy binary primitives *)
+    let (env', reg_offset) = extend_regenv (sprintf "temp_%d" tag) env in
     let jump_label = sprintf "label_%d" tag in (* generates unique label *)
 
+    (* prelude to no-lazy binary primitives *)
     let normal_eval (inst : instruction list) : instruction list =
-      let (env', reg_offset) = extend_regenv (sprintf "temp_%d" tag) env in
       (compile_expr e2 env) @ (* set value of e2 in RAX *)
       
       [IMov (Reg (RSP reg_offset), Reg RAX)] @ (* moves value to stack *)
@@ -60,19 +60,17 @@ let rec compile_expr (e : tag expr) (env : reg_env) : instruction list =
     (* if after computing one operand the result is equal to value, doesn't compute second value and mantains result 
     else compute inst as normal *)
     let lazy_eval (inst : instruction list) (value : int64) : instruction list =
-      let (env', reg_offset) = extend_regenv (sprintf "temp_%d" tag) env in
       (compile_expr e2 env) @ (* evalua un operando *)
       
       (* lazy_eval es lo mismo que normal_eval con estas lineas extra y el label al final *)
-      [IMov (Reg R11, Const value)] @ (* no puedo comparar con imm64?? *)
+      [IMov (Reg R11, Const value)] @ (* no puedo comparar con imm64?? no segun el profe *)
       [ICmp (Reg RAX, Reg R11)] @ [IJe jump_label] @ (* compara value con resultado y si es igual termina *)
       
       [IMov (Reg (RSP reg_offset), Reg RAX)] @ (* si no continua normal *)
       (compile_expr e1 env') @ inst @ [ILabel jump_label] in
 
     (* to generate comparative operations*)
-    let condition (inst : instruction list) : (instruction list) =
-      let (_, reg_offset) = extend_regenv (sprintf "label_%d" tag) env in
+    let cond_eval (inst : instruction list) : (instruction list) =
       [ ICmp (Reg RAX, Reg (RSP reg_offset))] @ (* compares values (left operand e1 in RAX) *)
       [ IMov (Reg RAX, Const val_true) ] @ inst @ (* preemptively sets false and check condition *)
       [ IMov (Reg RAX, Const val_false) ; ILabel(jump_label) ] in (* if true, overrides RAX *)
@@ -85,12 +83,12 @@ let rec compile_expr (e : tag expr) (env : reg_env) : instruction list =
     | Div -> normal_eval [IDiv (Reg (RSP reg_offset))] @ [ ISal (Reg RAX, Const 1L) ]
     | And -> lazy_eval [IAnd (Reg RAX, Reg (RSP reg_offset))] val_false
     | Or -> lazy_eval [IOr (Reg RAX, Reg (RSP reg_offset))] val_true
-    | Lt -> normal_eval (condition [ IJl jump_label ])
-    | Gt -> normal_eval (condition [ IJg jump_label ])
-    | Lte -> normal_eval (condition [ IJle jump_label ])
-    | Gte -> normal_eval (condition [ IJge jump_label ])
-    | Eq -> normal_eval (condition [ IJe jump_label ])
-    | Neq -> normal_eval (condition [ IJne jump_label ]) )
+    | Lt -> normal_eval (cond_eval [ IJl jump_label ])
+    | Gt -> normal_eval (cond_eval [ IJg jump_label ])
+    | Lte -> normal_eval (cond_eval [ IJle jump_label ])
+    | Gte -> normal_eval (cond_eval [ IJge jump_label ])
+    | Eq -> normal_eval (cond_eval [ IJe jump_label ])
+    | Neq -> normal_eval (cond_eval [ IJne jump_label ]) )
   | Let (id, e, body, _) -> 
     let (env', reg_offset) = extend_regenv id env in
       (compile_expr e env) @ (* se extrae valor de e y queda en RAX *)
