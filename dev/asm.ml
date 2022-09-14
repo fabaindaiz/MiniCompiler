@@ -4,7 +4,6 @@ open Printf
 (* registers *)
 type reg = 
 | RAX (* the register where we place answers *)
-| RBX
 | R11 (* temporary register *)
 | RSP of int (* the stack pointer, the integer offset is multiplied by 8 after *)
 
@@ -42,7 +41,6 @@ type instruction =
 let pp_reg reg : string =
   match reg with
   | RAX -> "RAX"
-  | RBX -> "RBX"
   | R11 -> "R11"
   | RSP n -> sprintf "[RSP - %d]" (n * 8)
 
