@@ -8,8 +8,8 @@ open Printf
 
 (* Testing arithmetic expression using the print function defined in Interp 
    and the default equality for comparison *)
-let exp : eexpr testable =
-  testable (fun oc e -> Format.fprintf oc "%s" (string_of_eexpr e)) (=)
+let exp : expr testable =
+  testable (fun oc e -> Format.fprintf oc "%s" (string_of_expr e)) (=)
 
 let value : value testable =
   testable (fun oc e -> Format.fprintf oc "%s" (string_of_val e)) (=)
@@ -17,15 +17,15 @@ let value : value testable =
 
 (* Tests for our [parse] function *)
 let test_parse_int () =
-  check exp "same int" (parse_exp (`Atom "5")) (ENum 5L)
+  check exp "same int" (parse_exp (`Atom "5")) (Num 5L)
 
 let test_parse_var () =
-  check exp "same var" (parse_exp (`Atom "x")) (EId "x")
+  check exp "same var" (parse_exp (`Atom "x")) (Id "x")
 
 let test_parse_compound () =
   check exp "same expr"
     (parse_exp (`List [`Atom "+" ; `List [`Atom "+" ; `Atom "3"; `Atom "x"]; `Atom "7"]))
-    (EPrim2 (Add, EPrim2 (Add, ENum 3L, EId "x"), ENum 7L))
+    (Prim2 (Add, Prim2 (Add, Num 3L, Id "x"), Num 7L))
 
 let test_parse_error () =
   let sexp = `List [`Atom "foo"; `Atom "bar"] in
@@ -35,14 +35,14 @@ let test_parse_error () =
 
 (* Tests for our [interp] function *)
 let test_interp_num () =
-  check value "same int" (interp (ENum 42L) empty_env) (NumV 42L)
+  check value "same int" (interp (Num 42L) empty_env) (NumV 42L)
 
 let test_interp_var () =
-  check value "same int" (interp (EId "x") ["x", NumV 7L]) (NumV 7L)
+  check value "same int" (interp (Id "x") ["x", NumV 7L]) (NumV 7L)
 
 let test_interp_compound () =
   check value "same int"
-    (interp (EPrim2 (Add, EPrim2 (Add, ENum 3L, (EPrim1 (Sub1, ENum 6L))), ENum 12L)) empty_env)
+    (interp (Prim2 (Add, Prim2 (Add, Num 3L, (Prim1 (Sub1, Num 6L))), Num 12L)) empty_env)
     (NumV 20L)
 
 (* OCaml tests: extend with your own tests *)

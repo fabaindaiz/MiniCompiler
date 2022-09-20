@@ -46,17 +46,17 @@ let extend_env : string -> value -> env -> env =
   fun x v env -> (x, v) :: env
 
 (* interpreter *)
-let rec interp (expr : eexpr) env =
+let rec interp (expr : expr) env =
   match expr with
-  | EId x -> List.assoc x env
-  | ENum n -> NumV n
-  | EBool b -> BoolV b
-  | EPrim1 (op, e) -> 
+  | Id x -> List.assoc x env
+  | Num n -> NumV n
+  | Bool b -> BoolV b
+  | Prim1 (op, e) -> 
     (match op with
     | Add1 -> liftIII ( Int64.add ) (interp e env) (NumV 1L)
     | Sub1 -> liftIII ( Int64.sub ) (interp e env) (NumV 1L)
     | Not -> liftBB ( Bool.not ) (interp e env) )
-  | EPrim2 (op, e1, e2) -> 
+  | Prim2 (op, e1, e2) -> 
     (match op with
     | Add -> liftIII ( Int64.add )
     | Sub -> liftIII ( Int64.sub )
@@ -70,8 +70,8 @@ let rec interp (expr : eexpr) env =
     | Gte -> liftIIB ( >= )
     | Eq -> liftIIB ( == )
     | Neq -> liftIIB ( != ) ) (interp e1 env) (interp e2 env)
-  | ELet (x, e , b) -> interp b (extend_env x (interp e env) env)
-  | EIf (e1, e2, e3) -> 
+  | Let (x, e , b) -> interp b (extend_env x (interp e env) env)
+  | If (e1, e2, e3) -> 
     (match (interp e1 env) with
     | BoolV b -> if b then interp e2 env else interp e3 env
     | _ -> failwith "runtime type error")

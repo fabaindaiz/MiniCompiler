@@ -27,18 +27,18 @@ let bool_mask = 0x8000000000000000L
 let val_true = Int64.add Int64.min_int bool_tag (* 10..01*)
 let val_false = bool_tag (* 00..01*)
 
-let rec compile_expr (e : tag expr) (env : reg_env) : instruction list =
+let rec compile_expr (e : tag eexpr) (env : reg_env) : instruction list =
   match e with 
-  | Num (n, _) -> 
+  | ENum (n, _) -> 
     if n > max_int || n < min_int then
       failwith ("Integer overflow: " ^ (Int64.to_string n))
     else
       [ IMov (Reg RAX, Const (Int64.shift_left n 1)) ] 
-  | Bool (b, _) ->
+  | EBool (b, _) ->
     let val_rep = (if b then val_true else val_false) in
       [ IMov (Reg RAX, Const (val_rep)) ]
-  | Id (s, _) -> [ IMov (Reg RAX, Reg (List.assoc s env))] (* mueve valor desde la pila a RAX *)
-  | Prim1 (op, e, _) -> let insts =
+  | EId (s, _) -> [ IMov (Reg RAX, Reg (List.assoc s env))] (* mueve valor desde la pila a RAX *)
+  | EPrim1 (op, e, _) -> let insts =
     (match op with
     | Add1 -> [IAdd ((Reg RAX), Const 2L)]
     | Sub1 -> [IAdd ((Reg RAX), Const (-2L))]
@@ -46,7 +46,7 @@ let rec compile_expr (e : tag expr) (env : reg_env) : instruction list =
       [ IMov (Reg R11, Const bool_mask) ] @
       [ IXor (Reg RAX, Reg R11) ]) in 
       (compile_expr e env) @ insts
-  | Prim2 (op, e1, e2, tag) -> 
+  | EPrim2 (op, e1, e2, tag) -> 
     let (env', reg_offset) = extend_regenv (sprintf "temp_%d" tag) env in
     let jump_label = sprintf "label_%d" tag in (* generates unique label *)
 
@@ -89,12 +89,12 @@ let rec compile_expr (e : tag expr) (env : reg_env) : instruction list =
     | Gte -> normal_eval (cond_eval [ IJge jump_label ])
     | Eq -> normal_eval (cond_eval [ IJe jump_label ])
     | Neq -> normal_eval (cond_eval [ IJne jump_label ]) )
-  | Let (id, e, body, _) -> 
+  | ELet (id, e, body, _) -> 
     let (env', reg_offset) = extend_regenv id env in
       (compile_expr e env) @ (* se extrae valor de e y queda en RAX *)
       [ IMov (Reg (RSP reg_offset), Reg RAX) ] @ (* se pasa el valor de RAX a la direccion RSP disponible *)
       (compile_expr body env') (* se compila body con nuevo env *)
-  | If (c, t, e, tag) ->
+  | EIf (c, t, e, tag) ->
     let else_label = sprintf "if_false_%d" tag in
       let done_label = sprintf "done_%d" tag in
       (compile_expr c env) @ [IMov (Reg R11, Const val_true)] @ [ ICmp(Reg RAX, Reg R11) ; IJne(else_label) ] @
