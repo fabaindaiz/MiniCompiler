@@ -1,0 +1,6 @@
+NAME: lte3
+DESCRIPTION: a
+SRC:
+(<= 1 0)
+EXPECTED:
+false

@@ -1,0 +1,9 @@
+NAME: let-bind 2
+DESCRIPTION: let-binding normal
+SRC:
+(let (x 10)
+ (let (y (add1 x))
+  (let (z (add1 y))
+   (add1 z))))
+EXPECTED:
+13

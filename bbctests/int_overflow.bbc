@@ -1,0 +1,7 @@
+NAME: num overflow
+DESCRIPTION: evaluates a number
+STATUS: CT error
+SRC:
+9223372036854775807
+EXPECTED:
+Failure(\"Integer overflow: 9223372036854775807\")

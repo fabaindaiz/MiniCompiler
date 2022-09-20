@@ -1,0 +1,7 @@
+NAME: if false 2
+DESCRIPTION: +if
+SRC:
+(let (x false)
+ (if (not x) (add1 0) (sub1 false)))
+EXPECTED:
+1

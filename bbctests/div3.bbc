@@ -1,0 +1,6 @@
+NAME: div3
+DESCRIPTION: evaluates a division
+SRC:
+(* (/ 5000 -256) -1)
+EXPECTED:
+19

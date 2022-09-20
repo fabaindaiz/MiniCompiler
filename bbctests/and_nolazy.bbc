@@ -1,0 +1,7 @@
+NAME: and nolazy
+DESCRIPTION: a n d
+SRC:
+(and false true)
+|and bit a bit entre false y un número siempre es 0
+EXPECTED:
+false

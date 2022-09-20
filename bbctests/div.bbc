@@ -1,0 +1,6 @@
+NAME: div
+DESCRIPTION: evaluates a division
+SRC:
+(* (/ 922337203685470 -2) -2)
+EXPECTED:
+922337203685470

@@ -1,0 +1,6 @@
+NAME: sub1
+DESCRIPTION: decrements a number
+SRC:
+(sub1 0)
+EXPECTED:
+-1

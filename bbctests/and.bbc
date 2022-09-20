@@ -1,0 +1,6 @@
+NAME: and
+DESCRIPTION: a n d
+SRC:
+(and true false)
+EXPECTED:
+false

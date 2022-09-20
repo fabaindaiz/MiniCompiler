@@ -1,0 +1,5 @@
+(
+    (defsys max int int -> int)
+    (defsys print any -> any)
+    (print (+ 2 (max 5 (+ 4 6))))
+)
