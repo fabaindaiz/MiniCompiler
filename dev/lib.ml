@@ -3,6 +3,26 @@ open Printf
 open Asm
 
 
+(* data structure to save defined functions *)
+type funenv = (string * int) list
+(* data structure to attach registers to variables *)
+type reg_env = (string * arg) list
+
+let empty_regenv : reg_env = []
+
+(* Obtiene el offset de la variable actual*)
+let get_offset (env : reg_env) : int =
+  1 + (List.length env)
+
+(* extiende el ambiente con una variable del usuario *)
+let extend_regenv (x : string) (env : reg_env) : (reg_env * int) =
+  let reg_offset = (get_offset env) in
+  ((x, RegOffset (RSP, reg_offset)) :: env, reg_offset)
+
+let extend_regenv_reg (x : string * arg) (env : reg_env) : (reg_env) =
+  let id, register = x in
+  ((id, register) :: env)
+
 (* gensym for string labels *)
 let gensym =
   let a_counter = ref 0 in
@@ -39,12 +59,12 @@ let rsp_offset (num : int) : arg =
 
 (* prelude for callee *)
 let callee_start (name : string) (num : int) : (instruction list) =
-  [ ILabel(name) ; IPush(Reg RSP) ; IMov(Reg RBP, Reg RSP) ] @
+  [ ILabel(name) ; IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP) ] @
   [ ISub(Reg RSP, rsp_offset num) ]
 
 (* return for callee *)
 let callee_end : (instruction list) =
-  [ IMov(Reg RSP, Reg RBP) ; IPop(Reg RSP) ; IRet ]
+  [ IMov(Reg RSP, Reg RBP) ; IPop(Reg RBP) ; IRet ]
 
 let callee_instrs (name : string) (instrs : instruction list) (num : int) : (instruction list) =
   (callee_start name num) @ instrs @ callee_end (* TODO num *)
@@ -71,6 +91,24 @@ let caller_match (num : int) : (instruction list) =
   | 6 -> [ IMov(Reg R9, Reg RAX) ]
   | _ -> [ IPush(Reg RAX) ]
 
+(* get enviroment for args list *)  
+let env_from_args (args : string list) : reg_env =
+  let rec env_arg_help (l : string list) (count : int) : reg_env = 
+    match l with
+    | [] -> empty_regenv
+    | id::tail ->
+    begin match count with
+    | 1 -> extend_regenv_reg (id, (Reg RDI)) (env_arg_help tail (count+1))
+    | 2 -> extend_regenv_reg (id, (Reg RSI)) (env_arg_help tail (count+1))
+    | 3 -> extend_regenv_reg (id, (Reg RDX)) (env_arg_help tail (count+1))
+    | 4 -> extend_regenv_reg (id, (Reg RCX)) (env_arg_help tail (count+1))
+    | 5 -> extend_regenv_reg (id, (Reg R8)) (env_arg_help tail (count+1))
+    | 6 -> extend_regenv_reg (id, (Reg R9)) (env_arg_help tail (count+1))
+    | _ -> extend_regenv_reg (id, (RegOffset (RSP, count-6))) (env_arg_help tail (count+1))
+    end
+    in env_arg_help args 1 
+
+
 (* generate an instruction for each argument *)
 let caller_args (instrs : instruction list list) : (instruction list) =
   List.fold_left (fun res i -> res @ caller_match (caller_gensym false) @ i ) [] instrs
@@ -91,4 +129,4 @@ let caller_instrs (target : string) (instrs_list : instruction list list) : (ins
   let instrs = (List.rev (caller_args instrs_list)) in (* arguments for the call *)
   let args_num = List.length instrs_list in (* number of arguments *)
   let _ = caller_gensym true in (* reset gensym function for other calls *)
-    instrs @ (caller_val target instrs args_num)
+    (caller_val target instrs args_num)
