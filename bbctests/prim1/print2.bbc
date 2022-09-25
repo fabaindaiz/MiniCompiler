@@ -1,0 +1,8 @@
+NAME: print 2
+DESCRIPTION: evaluates several print
+SRC:
+(add1 (print (add1 (print (+ 10 2)))))
+EXPECTED:
+> 12
+> 13
+14

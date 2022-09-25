@@ -1,0 +1,9 @@
+NAME: func
+DESCRIPTION: evaluates a function declaration
+SRC:
+(
+    (def (g x y) (+ x y))
+    (g 5 -21)
+)
+EXPECTED:
+-16

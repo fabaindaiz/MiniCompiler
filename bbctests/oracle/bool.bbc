@@ -1,0 +1,6 @@
+NAME: bool
+DESCRIPTION: evaluates a boolean
+SRC:
+true
+EXPECTED:
+|ORACLE

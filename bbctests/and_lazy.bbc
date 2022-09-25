@@ -1,6 +1,0 @@
-NAME: and lazy
-DESCRIPTION: a n d
-SRC:
-(and 15 false)
-EXPECTED:
-false

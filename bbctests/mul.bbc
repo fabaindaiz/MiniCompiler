@@ -1,6 +1,0 @@
-NAME: mul
-DESCRIPTION: evaluates a multiplication
-SRC:
-(* 20 -2)
-EXPECTED:
--40

@@ -1,0 +1,6 @@
+NAME: and nolazy
+DESCRIPTION: evaluates a nolazy and
+SRC:
+(and false true)
+EXPECTED:
+false

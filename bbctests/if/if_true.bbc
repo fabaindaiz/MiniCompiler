@@ -1,0 +1,7 @@
+NAME: if true
+DESCRIPTION: evaluate a if
+SRC:
+(let (x true)
+ (if x (add1 0) (sub1 0)))
+EXPECTED:
+1

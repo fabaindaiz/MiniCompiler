@@ -1,0 +1,10 @@
+NAME: func 3
+DESCRIPTION: evaluates a function declaration
+SRC:
+(
+    (def (f x y z) (+ (+ x y) z))
+    (def (g x y) (f x y 1))
+    (g 5 -21)
+)
+EXPECTED:
+-15

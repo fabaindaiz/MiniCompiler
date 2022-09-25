@@ -1,6 +1,0 @@
-NAME: lte2
-DESCRIPTION: a
-SRC:
-(<= (sub1 5) 5)
-EXPECTED:
-true

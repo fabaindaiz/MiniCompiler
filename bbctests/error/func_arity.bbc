@@ -1,0 +1,10 @@
+NAME: func arity error 2
+DESCRIPTION: evaluates a program with function error
+STATUS: CT error
+SRC:
+(
+    (def (g x y) (if (<= x y) (* x y) x))
+    (g 0 -21 1)
+)
+EXPECTED:
+Arity mismatch: g expected 2 arguments but got 3

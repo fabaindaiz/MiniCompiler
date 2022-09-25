@@ -1,6 +1,0 @@
-NAME: div2
-DESCRIPTION: evaluates a division
-SRC:
-(* (/ 922337203685470 922337203685470) -1)
-EXPECTED:
--1

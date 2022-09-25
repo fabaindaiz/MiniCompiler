@@ -1,0 +1,9 @@
+NAME: func 2
+DESCRIPTION: evaluates a function declaration
+SRC:
+(
+    (def (g x y) (if (<= x y) 5 x))
+    (g 0 -21)
+)
+EXPECTED:
+0

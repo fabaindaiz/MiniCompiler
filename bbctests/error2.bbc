@@ -1,8 +1,0 @@
-NAME: error 2
-DESCRIPTION: +error
-STATUS: RT error
-SRC:
-(let (x true)
- (if (not x) (add1 0) (sub1 false)))
-EXPECTED:
-Expected number, but got false

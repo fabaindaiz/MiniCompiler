@@ -1,0 +1,6 @@
+NAME: and lazy
+DESCRIPTION: evaluates a lazy and
+SRC:
+(and false 15)
+EXPECTED:
+false

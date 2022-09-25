@@ -1,7 +1,0 @@
-NAME: error
-DESCRIPTION: evaluates a nested sum
-STATUS: RT error
-SRC:
-(add1 true)
-EXPECTED:
-Expected number, but got true

@@ -1,0 +1,6 @@
+NAME: or nolazy
+DESCRIPTION: evaluates a logic or
+SRC:
+(or true false)
+EXPECTED:
+true

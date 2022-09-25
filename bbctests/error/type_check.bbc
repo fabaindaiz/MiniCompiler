@@ -1,0 +1,7 @@
+NAME: type check error 
+DESCRIPTION: evaluates a program with type checking error
+STATUS: RT error
+SRC:
+(add1 true)
+EXPECTED:
+Expected number, but got true

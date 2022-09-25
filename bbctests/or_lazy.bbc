@@ -1,6 +1,0 @@
-NAME: orlaszy
-DESCRIPTION: logic or
-SRC:
-(or (sub1 0) true)
-EXPECTED:
-true

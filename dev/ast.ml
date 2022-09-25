@@ -1,6 +1,7 @@
 (** AST **)
 open Printf
 
+
 (* primitivas unarias *)
 type prim1 =
 | Add1
@@ -124,7 +125,7 @@ let tag_fundef (d : fundef) : tag efundef =
   let (tagged, _) = tag_fundef_help d 1 in tagged
 
 
-let tag_eprogram_help (p : prog) (cur : int) : (tag eprog * tag) =
+let tag_program_help (p : prog) (cur : int) : (tag eprog * tag) =
   let d, e = p in
     let next_tag1 = ref (cur) in
     let tag_d = List.fold_left (fun res i -> res @
@@ -133,8 +134,8 @@ let tag_eprogram_help (p : prog) (cur : int) : (tag eprog * tag) =
     let (tag_e, next_tag2) = tag_expr_help e (!next_tag1) in
     ((tag_d, tag_e), next_tag2)
 
-let tag_eprogram (p : prog) : tag eprog =
-  let (tagged, _) = tag_eprogram_help p 1 in tagged
+let tag_program (p : prog) : tag eprog =
+  let (tagged, _) = tag_program_help p 1 in tagged
 
 
 let string_of_elist op expr =
@@ -170,35 +171,6 @@ let rec string_of_expr(e : expr) : string =
   | If (e1, e2, e3) -> sprintf "(if %s %s %s)" (string_of_expr e1) (string_of_expr e2) (string_of_expr e3)
   | App (f, e1) -> sprintf "(app %s (%s))" f (string_of_elist string_of_expr e1)
 
-(* Pretty printing - used by testing framework *)
-let rec string_of_eexpr(e : tag eexpr) : string = 
-  match e with
-  | ENum (n, _) -> Int64.to_string n
-  | EBool (b, _) -> Bool.to_string b
-  | EId (s, _) -> s
-  | EPrim1 (op, e1, _) -> sprintf "(%s %s)" 
-    (match op with
-    | Add1 -> "add1"
-    | Sub1 -> "sub1"
-    | Not -> "not"
-    | Print -> "print") (string_of_eexpr e1)
-  | EPrim2 (op, e1, e2, _) -> sprintf "(%s %s %s)" 
-    (match op with 
-    | Add -> "+"
-    | Sub -> "-"
-    | Mul -> "*"
-    | Div -> "/"
-    | And -> "and"
-    | Or -> "or"
-    | Lt -> "<"
-    | Gt -> ">"
-    | Lte -> "<="
-    | Gte -> ">="
-    | Eq -> "=="
-    | Neq -> "!=") (string_of_eexpr e1) (string_of_eexpr e2)
-  | ELet (x, e1, e2, _) -> sprintf "(let (%s %s) %s)" x (string_of_eexpr e1) (string_of_eexpr e2) 
-  | EIf (e1, e2, e3, _) -> sprintf "(if %s %s %s)" (string_of_eexpr e1) (string_of_eexpr e2) (string_of_eexpr e3)
-  | EApp (f, e1, _) -> sprintf "(app %s %s)" f (string_of_elist string_of_eexpr e1)
 
 (** functions below are not used, would be used if testing the parser on defs **)
 
@@ -216,6 +188,6 @@ let string_of_fundef(d : fundef) : string =
   | DefSys (name, arg_types, ret_type) -> sprintf "(defsys %s %s -> %s)" name (String.concat " " (List.map string_of_ctype arg_types)) (string_of_ctype ret_type)
 
 (* Pretty printing a program - used by testing framework *)
-let string_of_eprog(p : prog) : string =
+let string_of_prog(p : prog) : string =
   let fundefs, body = p in
   String.concat "\n" ((List.map string_of_fundef fundefs) @ [string_of_expr body])

@@ -1,8 +1,0 @@
-NAME: let-bind 4
-DESCRIPTION: let-binding hard
-SRC:
-(let (a 10)
- (let (b 20)
-  (+ a b)))
-EXPECTED:
-30

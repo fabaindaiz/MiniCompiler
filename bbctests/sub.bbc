@@ -1,6 +1,0 @@
-NAME: sub
-DESCRIPTION: evaluates a nested sum
-SRC:
-(- (- 2 3) (- 4 9))
-EXPECTED:
-4

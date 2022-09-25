@@ -1,0 +1,6 @@
+NAME: or lazy
+DESCRIPTION: evaluates a logic or
+SRC:
+(or true (sub1 0))
+EXPECTED:
+true
