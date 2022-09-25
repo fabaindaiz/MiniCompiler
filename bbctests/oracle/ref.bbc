@@ -1,0 +1,8 @@
+NAME: ref
+DESCRIPTION: basic example using reference interpreter
+SRC:
+(add1 (if true
+          (+ 32 1)
+          (* 5 3)))
+EXPECTED:
+|ORACLE
