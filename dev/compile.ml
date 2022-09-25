@@ -138,7 +138,7 @@ let compile_function (func : tag efundef) (fenv : funenv) : instruction list * f
     let fenv' = (fun_name, List.length arg_list) :: fenv in
       (callee_instrs fun_name instrs (num_expr e), fenv')
   | EDefSys (fun_name, type_list, type_ret) ->
-    (callee_instrs fun_name [ ICall fun_name ] 100, fenv) (* TODO modificar esto y EApp *)
+    (callee_instrs fun_name [ ICall fun_name ] 100, fenv) (* TODO modificar esto y EApp para que lo reconozca *)
 
 (* compile several functions *)
 let compile_functions (flist : tag efundef list) : instruction list * funenv =
@@ -150,16 +150,26 @@ let compile_functions (flist : tag efundef list) : instruction list * funenv =
       new_insts @ t_insts, new_env @ t_env in
   compile_functions_help flist []
 
-    
+
+(* generate asm prelude *)
+let prelude (defsys : string) = sprintf "
+  section .text 
+  %s
+  global our_code_starts_here" defsys
+
 (* compilation pipeline *)
 let compile_prog (p : prog) : string =
-  let tag_flist, tagged = tag_program p in
-  (* variables empiezan colocandose desde RSP - 8*1 *)
-  let finsts, fenv = (compile_functions tag_flist) in
-  let instrs = compile_expr tagged empty_regenv fenv in
-  let prelude ="
-section .text
-extern error
-extern print
-global our_code_starts_here" in
-  prelude ^ pp_instrs finsts ^ pp_instrs (callee_instrs "our_code_starts_here" instrs 0) (* TODO *)
+  (* compile functions *)
+  let tagged_flist, tagged_expr = (tag_program p) in
+  let finstrs, fenv = (compile_functions tagged_flist) in
+  
+  (* compile main expresion *)
+  let instrs = (compile_expr tagged_expr empty_regenv fenv) in
+  let einstrs = (callee_instrs "our_code_starts_here" instrs 0) in
+
+  (* variables internas *)
+  let defsys_list = [ "error" ; "print" ] in (* TODO esto se va a usar con defsys, eg: (sysdef print any -> any) *)
+  let defsys_string = (List.fold_left (fun res i -> res ^ sprintf "extern %s\n" i) "" defsys_list) in
+
+  (* compile program *)
+  (prelude defsys_string) ^ (pp_instrs finstrs) ^ (pp_instrs einstrs)
