@@ -41,18 +41,18 @@ let err_not_number = 1L
 let err_not_boolean = 2L
 
 (* apply register test *)
-let error_asm (error : int64) (ret : reg) (reg : reg) (num : int) (tag : int) : (instruction list) = 
+let error_asm (error : int64) (ret : reg) (reg : reg) (num : int) (tag : int) : instruction list = 
   let test_label = sprintf "test%d_%d" num tag in
     [ ITest(Reg reg, Const error_tag) ; IJnz(test_label) ] @ (* Testea que el registro cumpla la condición *)
     [ IMov(Reg RSI, Reg ret) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
     [ ICall("error") ; ILabel(test_label) ] (* Si la cumple, salta al label *)
 
 (* !0x...0 & 0x1 = 0x1 *)
-let error_not_number (reg : reg) (num : int) (tag : int) : (instruction list) = 
+let error_not_number (reg : reg) (num : int) (tag : int) : instruction list = 
   [ IMov(Reg R11, Reg reg) ; IXor(Reg R11, Const error_tag) ] @ (error_asm err_not_number RAX R11 num tag)
 
 (*  0x...1 & 0x1 = 0x1 *)
-let error_not_boolean (reg : reg) (num : int) (tag : int) : (instruction list) = 
+let error_not_boolean (reg : reg) (num : int) (tag : int) : instruction list = 
   (error_asm err_not_boolean reg reg num tag)
 
 
@@ -73,7 +73,7 @@ let callee_gensym =
     !b_counter );;
 
 (* prelude for callee *)
-let callee_start (name : string) (num : int) : (instruction list) =
+let callee_start (name : string) (num : int) : instruction list =
   [ ILabel(name) ; IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP) ] @
   [ ISub(Reg RSP, rsp_offset num) ]
 
@@ -81,7 +81,7 @@ let callee_start (name : string) (num : int) : (instruction list) =
 let callee_end : (instruction list) =
   [ IMov(Reg RSP, Reg RBP) ; IPop(Reg RBP) ; IRet ]
 
-let callee_instrs (name : string) (instrs : instruction list) (num : int) : (instruction list) =
+let callee_instrs (name : string) (instrs : instruction list) (num : int) : instruction list =
   (callee_start name num) @ instrs @ callee_end
 
 
@@ -95,23 +95,23 @@ let ccall_reg (num : int) : (instruction list) =
   | 6 -> [ IMov(Reg RAX, Reg R9) ]
   | _ -> [ IMov(Reg RAX, RegOffset(RSP, 0)) ] (* TODO verificar el offset que debe ir *)
 
-let ctype_error (ctype : ctype) (num : int) (tag : int) : (instruction list) =
+let ctype_error (ctype : ctype) (num : int) (tag : int) : instruction list =
   match ctype with
   | CAny -> []
   | CInt -> (error_not_number RAX num tag)
   | CBool -> (error_not_boolean RAX num tag)
 
 (* c calls type verification *)
-let ccall_list (type_list : ctype list) (tag : int) : (instruction list) =
+let ccall_list (type_list : ctype list) (tag : int) : instruction list =
   let _ = callee_gensym true in
   List.fold_left (fun res i -> res @ 
     let num = (callee_gensym false) in
     (ccall_reg num) @ (ctype_error i num tag)) [] type_list
 
-let ccall_ret (type_ret : ctype) (tag : int) : (instruction list) =
+let ccall_ret (type_ret : ctype) (tag : int) : instruction list =
   (ctype_error type_ret 0 tag)
 
-let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) (tag : int) : (instruction list) =
+let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) (tag : int) : instruction list =
   [ ILabel(call_name) ] @ (ccall_list type_list tag) @ [ ICall(fun_name) ] @
   (ccall_ret type_ret tag) @ [ IRet ]
 
@@ -127,7 +127,7 @@ let caller_gensym =
     !c_counter );;
 
 (* get instruction for argument *)
-let caller_match (num : int) : (instruction list) =
+let caller_match (num : int) : instruction list =
   match num with
   | 1 -> [ IMov(Reg RDI, Reg RAX) ]
   | 2 -> [ IMov(Reg RSI, Reg RAX) ]
@@ -155,7 +155,7 @@ let env_from_args (args : string list) : reg_env =
 
 
 (* generate an instruction for each argument *)
-let caller_args (instrs : instruction list list) : (instruction list) =
+let caller_args (instrs : instruction list list) : instruction list =
   let _ = caller_gensym true in
   List.fold_left (fun res i -> res @ caller_match (caller_gensym false) @ List.rev i ) [] instrs
 
@@ -166,11 +166,11 @@ let caller_restore =
   [ IPop(Reg RDI) ; IPop(Reg RSI) ; IPop(Reg RDX) ; IPop(Reg RCX) ; IPop(Reg R8) ; IPop(Reg R9) ]
 
 (* generate instruction for call *)
-let caller_val (target : string) (args : instruction list) (num : int) : (instruction list) =
+let caller_val (target : string) (args : instruction list) (num : int) : instruction list =
   caller_save @ args @ [ ICall(target) ] @ (* pass the arguments and call the function *)
   (if num >= 7 then [ IAdd(Reg RSP, rsp_offset (num - 6)) ] else []) @ caller_restore
 
-let caller_instrs (target : string) (instrs_list : instruction list list) : (instruction list) =
+let caller_instrs (target : string) (instrs_list : instruction list list) : instruction list =
   let instrs = (List.rev (caller_args instrs_list)) in (* arguments for the call *)
   let args_num = List.length instrs_list in (* number of arguments *)
     (caller_val target instrs args_num)

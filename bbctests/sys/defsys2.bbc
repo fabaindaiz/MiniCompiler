@@ -1,4 +1,4 @@
-NAME: C calls (print)
+NAME: C calls 2 (print)
 SRC:
 (
   (defsys print any -> any)

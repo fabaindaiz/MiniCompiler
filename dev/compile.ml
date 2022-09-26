@@ -91,8 +91,7 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
   | ENum (n, _) -> 
     if n > max_int || n < min_int then
       failwith ("Integer overflow: " ^ (Int64.to_string n))
-    else
-      [ IMov (Reg RAX, Const (Int64.shift_left n 1)) ] 
+    else [ IMov (Reg RAX, Const (Int64.shift_left n 1)) ] 
   | EBool (b, _) ->
     let val_rep = (if b then val_true else val_false) in
       [ IMov (Reg RAX, Const (val_rep)) ]
@@ -117,28 +116,26 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
       (compile_expr t env fenv nenv) @ [ IJmp(done_label) ; ILabel(else_label) ] @
       (compile_expr e env fenv nenv) @ [ ILabel(done_label) ]
   | EApp (f, p, _) -> 
-    let arg_n = (List.assoc_opt f fenv) in
-    let f_name = (List.assoc_opt f nenv) in
+    let args_f = (List.assoc_opt f fenv) in
+    let name_f = (List.assoc_opt f nenv) in
     let compile_elist (exprs : tag eexpr list) : instruction list list =
       List.fold_left (fun res i -> res @ [ (compile_expr i env fenv nenv) ]) [] exprs in
-      (match arg_n with
+      (match args_f with
         | Some n -> if (n == List.length p) then
-            (match f_name with
-              | Some f -> (caller_instrs f (compile_elist p))
-              | None -> failwith(sprintf "undefined funtion: %s" f) )
-          else
-            failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
+          (match name_f with
+            | Some f' -> (caller_instrs f' (compile_elist p))
+            | None -> (caller_instrs f (compile_elist p)) )
+          else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
         | None -> failwith(sprintf "undefined funtion: %s" f) )
       
 
 (* compile a function *)
-let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : instruction list * funenv * nameenv =
+let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : (instruction list * funenv * nameenv) =
   match func with
   | EDefFun (fun_name, arg_list, e, _) ->
     let instrs = (compile_expr (e) (env_from_args arg_list) fenv nenv) in
     let fenv' = (fun_name, List.length arg_list) :: fenv in
-    let nenv' = (fun_name, fun_name) :: nenv in
-      (callee_instrs fun_name instrs (num_expr e), fenv', nenv')
+      (callee_instrs fun_name instrs (num_expr e), fenv', nenv)
   | EDefSys (fun_name, type_list, type_ret, tag) ->
     let call_name = fun_name ^ "_sys" in
     let fenv' = (fun_name, List.length type_list) :: fenv in
@@ -146,14 +143,14 @@ let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : ins
       (callee_defsys call_name fun_name type_list type_ret tag, fenv', nenv')
 
 (* compile several functions *)
-let compile_functions (flist : tag efundef list) : instruction list * funenv * nameenv =
+let compile_functions (flist : tag efundef list) : (instruction list * funenv * nameenv) =
   let rec compile_functions_help (flist : tag efundef list) (fenv : funenv) (nenv : nameenv) : instruction list * funenv * nameenv =
     match flist with
     | [] -> [], [], []
     | head::tail -> 
-      let finstrs', fenv', nenv' = (compile_function head fenv nenv) in
-      let t_finstrs, t_fenv, t_nenv = (compile_functions_help tail fenv' nenv') in
-        finstrs' @ t_finstrs, fenv' @ t_fenv, nenv' @ t_nenv in
+      let instrs', fenv', nenv' = (compile_function head fenv nenv) in
+      let t_instrs, t_fenv, t_nenv = (compile_functions_help tail fenv' nenv') in
+        instrs' @ t_instrs, fenv' @ t_fenv, nenv' @ t_nenv in
   (compile_functions_help flist [] [])
 
 
@@ -175,7 +172,7 @@ let compile_prog (p : prog) : string =
 
   (* variables internas *)
   let defsys_list, _ = List.split nenv in
-  let extern_list = [ "error"] @ defsys_list in
+  let extern_list = [ "error" ] @ defsys_list in
   let defsys_string = (List.fold_left (fun res i -> res ^ sprintf "  extern %s\n" i) "" extern_list) in
 
   (* compile program *)
