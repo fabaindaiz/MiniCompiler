@@ -62,6 +62,16 @@ let rsp_offset (num : int) : arg =
   Const (Int64.of_int ((num + 1) land rsp_mask))
 
 
+(* reseteable gensym for callee *)
+let callee_gensym =
+  let b_counter = ref 0 in
+  (fun reset ->
+    if reset then
+      b_counter := 0
+    else
+      incr b_counter;
+    !b_counter );;
+
 (* prelude for callee *)
 let callee_start (name : string) (num : int) : (instruction list) =
   [ ILabel(name) ; IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP) ] @
@@ -72,16 +82,38 @@ let callee_end : (instruction list) =
   [ IMov(Reg RSP, Reg RBP) ; IPop(Reg RBP) ; IRet ]
 
 let callee_instrs (name : string) (instrs : instruction list) (num : int) : (instruction list) =
-  (callee_start name num) @ instrs @ callee_end (* TODO num *)
+  (callee_start name num) @ instrs @ callee_end
 
 
-let callee_ccall (type_list : ctype list) (type_ret : ctype) : (instruction list) =
-  []
-(* TODO hay que hacer la verificación de tipos para estas funciones que se ejecutaran desde c *)
-(* hay que ver como hacer esto, porque en callee los args estan guardados en registros y pila *)
+let ccall_reg (num : int) : (instruction list) =
+  match num with
+  | 1 -> [ IMov(Reg RAX, Reg RDI) ]
+  | 2 -> [ IMov(Reg RAX, Reg RSI) ]
+  | 3 -> [ IMov(Reg RAX, Reg RDX) ]
+  | 4 -> [ IMov(Reg RAX, Reg RCX) ]
+  | 5 -> [ IMov(Reg RAX, Reg R8) ]
+  | 6 -> [ IMov(Reg RAX, Reg R9) ]
+  | _ -> [ IMov(Reg RAX, RegOffset(RSP, 0)) ] (* TODO verificar el offset que debe ir *)
 
-let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) : (instruction list) =
-  [ ILabel(call_name) ] @ (callee_ccall type_list type_ret) @ [ ICall(fun_name) ; IRet ]
+let ctype_error (ctype : ctype) (num : int) (tag : int) : (instruction list) =
+  match ctype with
+  | CAny -> []
+  | CInt -> (error_not_number RAX num tag)
+  | CBool -> (error_not_boolean RAX num tag)
+
+(* c calls type verification *)
+let ccall_list (type_list : ctype list) (tag : int) : (instruction list) =
+  let _ = callee_gensym true in
+  List.fold_left (fun res i -> res @ 
+    let num = (callee_gensym false) in
+    (ccall_reg num) @ (ctype_error i num tag)) [] type_list
+
+let ccall_ret (type_ret : ctype) (tag : int) : (instruction list) =
+  (ctype_error type_ret 0 tag)
+
+let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) (tag : int) : (instruction list) =
+  [ ILabel(call_name) ] @ (ccall_list type_list tag) @ [ ICall(fun_name) ] @
+  (ccall_ret type_ret tag) @ [ IRet ]
 
 
 (* reseteable gensym for caller *)
@@ -124,6 +156,7 @@ let env_from_args (args : string list) : reg_env =
 
 (* generate an instruction for each argument *)
 let caller_args (instrs : instruction list list) : (instruction list) =
+  let _ = caller_gensym true in
   List.fold_left (fun res i -> res @ caller_match (caller_gensym false) @ List.rev i ) [] instrs
 
 let caller_save =
@@ -140,5 +173,4 @@ let caller_val (target : string) (args : instruction list) (num : int) : (instru
 let caller_instrs (target : string) (instrs_list : instruction list list) : (instruction list) =
   let instrs = (List.rev (caller_args instrs_list)) in (* arguments for the call *)
   let args_num = List.length instrs_list in (* number of arguments *)
-  let _ = caller_gensym true in (* reset gensym function for other calls *)
     (caller_val target instrs args_num)

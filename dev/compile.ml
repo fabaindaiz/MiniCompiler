@@ -139,11 +139,11 @@ let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : ins
     let fenv' = (fun_name, List.length arg_list) :: fenv in
     let nenv' = (fun_name, fun_name) :: nenv in
       (callee_instrs fun_name instrs (num_expr e), fenv', nenv')
-  | EDefSys (fun_name, type_list, type_ret) ->
+  | EDefSys (fun_name, type_list, type_ret, tag) ->
     let call_name = fun_name ^ "_sys" in
     let fenv' = (fun_name, List.length type_list) :: fenv in
     let nenv' = (fun_name, call_name) :: nenv in
-      (callee_defsys call_name fun_name type_list type_ret, fenv', nenv')
+      (callee_defsys call_name fun_name type_list type_ret tag, fenv', nenv')
 
 (* compile several functions *)
 let compile_functions (flist : tag efundef list) : instruction list * funenv * nameenv =

@@ -59,7 +59,7 @@ type fundef =
 
 type 'a efundef =
   | EDefFun of string * string list * 'a eexpr * 'a
-  | EDefSys of string * ctype list * ctype
+  | EDefSys of string * ctype list * ctype * 'a
 
 let fundef_name(f : fundef) : string =
   match f with
@@ -118,7 +118,7 @@ let tag_fundef_help (d : fundef) (cur : int) : (tag efundef * tag) =
     let (tag_e, next_tag) = tag_expr_help e (cur + 1) in
     (EDefFun (f, x, tag_e, cur), next_tag)
   | DefSys (f, x, e) ->
-    (EDefSys (f, x, e), cur)
+    (EDefSys (f, x, e, cur), cur + 1)
 
 let tag_fundef (d : fundef) : tag efundef =
   let (tagged, _) = tag_fundef_help d 1 in tagged
