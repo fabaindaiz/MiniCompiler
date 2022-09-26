@@ -1,10 +1,14 @@
 (** Lib **)
 open Printf
 open Asm
+open Ast
 
 
 (* data structure to save defined functions *)
 type funenv = (string * int) list
+(* data structure to save functions names *)
+type nameenv = (string * string) list
+
 (* data structure to attach registers to variables *)
 type reg_env = (string * arg) list
 
@@ -71,6 +75,15 @@ let callee_instrs (name : string) (instrs : instruction list) (num : int) : (ins
   (callee_start name num) @ instrs @ callee_end (* TODO num *)
 
 
+let callee_ccall (type_list : ctype list) (type_ret : ctype) : (instruction list) =
+  []
+(* TODO hay que hacer la verificación de tipos para estas funciones que se ejecutaran desde c *)
+(* hay que ver como hacer esto, porque en callee los args estan guardados en registros y pila *)
+
+let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) : (instruction list) =
+  [ ILabel(call_name) ] @ (callee_ccall type_list type_ret) @ [ ICall(fun_name) ; IRet ]
+
+
 (* reseteable gensym for caller *)
 let caller_gensym =
   let c_counter = ref 0 in
@@ -111,7 +124,7 @@ let env_from_args (args : string list) : reg_env =
 
 (* generate an instruction for each argument *)
 let caller_args (instrs : instruction list list) : (instruction list) =
-  List.fold_left (fun res i -> res @ caller_match (caller_gensym false) @ i ) [] instrs
+  List.fold_left (fun res i -> res @ caller_match (caller_gensym false) @ List.rev i ) [] instrs
 
 let caller_save =
   [ IPush(Reg R9) ; IPush(Reg R8) ; IPush(Reg RCX) ; IPush(Reg RDX) ; IPush(Reg RSI) ; IPush(Reg RDI) ]

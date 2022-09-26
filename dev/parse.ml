@@ -18,7 +18,6 @@ let rec parse_exp (sexp : sexp) : expr =
     | `Atom "add1" -> Prim1 (Add1, parse_exp e)
     | `Atom "sub1" -> Prim1 (Sub1, parse_exp e)
     | `Atom "not" -> Prim1 (Not, parse_exp e)
-    | `Atom "print" -> Prim1 (Print, parse_exp e)
     | `Atom name -> App (name, [parse_exp e])
     | _ -> raise (CTError (sprintf "Not a valid expr: %s" (to_string sexp))) )
   | `List [eop; e1; e2] -> 

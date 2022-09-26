@@ -1,0 +1,6 @@
+NAME: not
+DESCRIPTION: negate a boolean
+SRC:
+(not false)
+EXPECTED:
+true

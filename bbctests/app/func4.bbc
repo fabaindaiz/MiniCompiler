@@ -2,10 +2,10 @@ NAME: func 4
 DESCRIPTION: evaluates a function declaration
 SRC:
 (
-    (def (f x y) (- x y))
-    (def (g x y) (* x y))
-    (def (h x y) (g (f x y) (f y x)))
-    (f 0 (g 5 -21))
+    (def (iden x) x)
+    (def (suma x y) (+ x y))
+    (def (comp x y) (suma (iden x) (iden y)))
+    (suma 3 (comp 5 8))
 )
 EXPECTED:
-21
+16

@@ -1,10 +1,10 @@
-NAME: C calls (max, print)
+NAME: C calls (print)
 SRC:
 (
-  (defsys max int int -> int)
   (defsys print any -> any)
-  (print (+ 2 (max 5 (+ 4 6))))
+  (add1 (print (add1 (print (+ 10 2)))))
 )
 EXPECTED:
 > 12
-12
+> 13
+14

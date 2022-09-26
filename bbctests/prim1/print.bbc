@@ -1,7 +1,0 @@
-NAME: print
-DESCRIPTION: evaluates a print
-SRC:
-(print (+ 10 2))
-EXPECTED:
-> 12
-12

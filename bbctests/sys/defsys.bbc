@@ -1,9 +1,9 @@
-NAME: C calls (max, print)
+NAME: C calls (print)
 SRC:
 (
   (defsys print any -> any)
-  (print (+ 2 (+ 4 6)))
+  (print 2)
 )
 EXPECTED:
-> 12
-12
+> 2
+2

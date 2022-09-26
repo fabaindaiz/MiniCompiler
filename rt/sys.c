@@ -51,6 +51,10 @@ VAL print(VAL val) {
   return val;
 }
 
+VAL max(VAL val1, VAL val2) {
+  return val1 > val2? val1 : val2;
+}
+
 void print_result(VAL val) {
   char buffer[50];
   get_value(buffer, val);

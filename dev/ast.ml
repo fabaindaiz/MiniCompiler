@@ -7,7 +7,6 @@ type prim1 =
 | Add1
 | Sub1
 | Not
-| Print
 
 (* primitivas binarias *)
 type prim2 =
@@ -151,8 +150,7 @@ let rec string_of_expr(e : expr) : string =
     (match op with
     | Add1 -> "add1"
     | Sub1 -> "sub1"
-    | Not -> "not"
-    | Print -> "print") (string_of_expr e1)
+    | Not -> "not") (string_of_expr e1)
   | Prim2 (op, e1, e2) -> sprintf "(%s %s %s)" 
     (match op with 
     | Add -> "+"

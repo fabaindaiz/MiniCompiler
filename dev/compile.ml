@@ -30,39 +30,38 @@ let val_false = bool_tag (* 00..01*)
 
 
 (* compila primitivas unarias *)
-let compile_prim1 (compile_expr) (op : prim1) (e : tag eexpr) (tag : tag) (env : reg_env) (fenv : funenv) : instruction list =
+let compile_prim1 (compile_expr) (op : prim1) (e : tag eexpr) (tag : tag) (env : reg_env) (fenv : funenv) (nenv : nameenv) : instruction list =
   let insts =
     (match op with
     | Add1 -> (error_not_number RAX 1 tag) @ [IAdd (Reg RAX, Const 2L)]
     | Sub1 -> (error_not_number RAX 1 tag) @ [IAdd (Reg RAX, Const (-2L))]
     | Not -> (error_not_boolean RAX 1 tag) @
-      [ IMov (Reg R11, Const bool_mask) ; IXor (Reg RAX, Reg R11) ]
-    | Print -> (caller_instrs "print" [[]]) ) in 
-      (compile_expr e env fenv) @ insts
+      [ IMov (Reg R11, Const bool_mask) ; IXor (Reg RAX, Reg R11) ] ) in 
+      (compile_expr e env fenv nenv) @ insts
 
 
 (* compila primitivas binarias *)
-let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) (tag : tag) (env : reg_env) (fenv : funenv) : instruction list =
+let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) (tag : tag) (env : reg_env) (fenv : funenv) (nenv : nameenv) : instruction list =
   let (env', reg_offset) = extend_regenv (sprintf "temp_%d" tag) env in
   let jump_label = sprintf "label_%d" tag in (* generates unique label *)
 
   (* prelude to no-lazy binary primitives *)
   let normal_eval (inst : instruction list) (test) : instruction list =
-    (compile_expr e2 env fenv) @ (test RAX 2 tag) @ (* set value of e2 in RAX *)
+    (compile_expr e2 env fenv nenv) @ (test RAX 2 tag) @ (* set value of e2 in RAX *)
     
     [IMov (RegOffset (RSP, reg_offset), Reg RAX)] @ (* moves value to stack *)
-    (compile_expr e1 env' fenv) @ (test RAX 1 tag) @ inst in
+    (compile_expr e1 env' fenv nenv) @ (test RAX 1 tag) @ inst in
 
   (* if after computing one operand the result is equal to value, doesn't compute second value and mantains result 
   else compute inst as normal *)
   let lazy_eval (inst : instruction list) (test) (value : int64) : instruction list =
-    (compile_expr e1 env fenv) @ (test RAX 1 tag) @ (* evalua un operando *)
+    (compile_expr e1 env fenv nenv) @ (test RAX 1 tag) @ (* evalua un operando *)
     
     (* compara value con resultado y si es igual termina *)
     [ IMov (Reg R11, Const value) ; ICmp (Reg RAX, Reg R11) ; IJe jump_label ] @
     
     [IMov (RegOffset (RSP, reg_offset), Reg RAX)] @ (* si no continua normal *)
-    (compile_expr e2 env' fenv) @ (test RAX 2 tag) @ inst @ [ILabel jump_label] in
+    (compile_expr e2 env' fenv nenv) @ (test RAX 2 tag) @ inst @ [ILabel jump_label] in
 
   (* to generate comparative operations*)
   let cond_eval (inst : instruction list) : (instruction list) =
@@ -87,7 +86,7 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     | Neq -> normal_eval (cond_eval [ IJne jump_label ]) error_not_number )
 
 
-let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) : instruction list =
+let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nameenv): instruction list =
   match e with 
   | ENum (n, _) -> 
     if n > max_int || n < min_int then
@@ -102,74 +101,82 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) : instructi
     | None -> failwith("unbound variable in regenv")
     end
   | EPrim1 (op, e, tag) -> 
-    (compile_prim1 compile_expr op e tag env fenv)
+    (compile_prim1 compile_expr op e tag env fenv nenv)
   | EPrim2 (op, e1, e2, tag) -> 
-    (compile_prim2 compile_expr op e1 e2 tag env fenv)
+    (compile_prim2 compile_expr op e1 e2 tag env fenv nenv)
   | ELet (id, e, body, _) -> 
     let (env', reg_offset) = extend_regenv id env in
-      (compile_expr e env fenv) @ (* se extrae valor de e y queda en RAX *)
+      (compile_expr e env fenv nenv) @ (* se extrae valor de e y queda en RAX *)
       [ IMov (RegOffset (RSP, reg_offset), Reg RAX) ] @ (* se pasa el valor de RAX a la direccion RSP disponible *)
-      (compile_expr body env' fenv) (* se compila body con nuevo env *)
+      (compile_expr body env' fenv nenv) (* se compila body con nuevo env *)
   | EIf (c, t, e, tag) -> 
     let else_label = sprintf "if_false_%d" tag in
     let done_label = sprintf "done_%d" tag in
-      (compile_expr c env fenv) @ (error_not_boolean RAX 1 tag) @
+      (compile_expr c env fenv nenv) @ (error_not_boolean RAX 1 tag) @
       [ IMov (Reg R11, Const val_true) ; ICmp(Reg RAX, Reg R11) ; IJne(else_label) ] @
-      (compile_expr t env fenv) @ [ IJmp(done_label) ; ILabel(else_label) ] @
-      (compile_expr e env fenv) @ [ ILabel(done_label) ]
+      (compile_expr t env fenv nenv) @ [ IJmp(done_label) ; ILabel(else_label) ] @
+      (compile_expr e env fenv nenv) @ [ ILabel(done_label) ]
   | EApp (f, p, _) -> 
     let arg_n = (List.assoc_opt f fenv) in
+    let f_name = (List.assoc_opt f nenv) in
     let compile_elist (exprs : tag eexpr list) : instruction list list =
-      List.fold_left (fun res i -> res @ [ (compile_expr i env fenv) ]) [] exprs in
-      
+      List.fold_left (fun res i -> res @ [ (compile_expr i env fenv nenv) ]) [] exprs in
       (match arg_n with
         | Some n -> if (n == List.length p) then
-            (caller_instrs f (compile_elist p))
+            (match f_name with
+              | Some f -> (caller_instrs f (compile_elist p))
+              | None -> failwith(sprintf "undefined funtion: %s" f) )
           else
             failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
         | None -> failwith(sprintf "undefined funtion: %s" f) )
       
 
 (* compile a function *)
-let compile_function (func : tag efundef) (fenv : funenv) : instruction list * funenv =
+let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : instruction list * funenv * nameenv =
   match func with
   | EDefFun (fun_name, arg_list, e, _) ->
-    let instrs = (compile_expr (e) (env_from_args arg_list) fenv) in
+    let instrs = (compile_expr (e) (env_from_args arg_list) fenv nenv) in
     let fenv' = (fun_name, List.length arg_list) :: fenv in
-      (callee_instrs fun_name instrs (num_expr e), fenv')
+    let nenv' = (fun_name, fun_name) :: nenv in
+      (callee_instrs fun_name instrs (num_expr e), fenv', nenv')
   | EDefSys (fun_name, type_list, type_ret) ->
-    (callee_instrs fun_name [ ICall fun_name ] 100, fenv) (* TODO modificar esto y EApp para que lo reconozca *)
+    let call_name = fun_name ^ "_sys" in
+    let fenv' = (fun_name, List.length type_list) :: fenv in
+    let nenv' = (fun_name, call_name) :: nenv in
+      (callee_defsys call_name fun_name type_list type_ret, fenv', nenv')
 
 (* compile several functions *)
-let compile_functions (flist : tag efundef list) : instruction list * funenv =
-  let rec compile_functions_help (flist : tag efundef list) (fenv : funenv): instruction list * funenv =
+let compile_functions (flist : tag efundef list) : instruction list * funenv * nameenv =
+  let rec compile_functions_help (flist : tag efundef list) (fenv : funenv) (nenv : nameenv) : instruction list * funenv * nameenv =
     match flist with
-    | [] -> [], []
-    | head::tail -> let new_insts, new_env = (compile_function head fenv) in
-      let t_insts, t_env = (compile_functions_help tail new_env) in
-      new_insts @ t_insts, new_env @ t_env in
-  compile_functions_help flist []
+    | [] -> [], [], []
+    | head::tail -> 
+      let finstrs', fenv', nenv' = (compile_function head fenv nenv) in
+      let t_finstrs, t_fenv, t_nenv = (compile_functions_help tail fenv' nenv') in
+        finstrs' @ t_finstrs, fenv' @ t_fenv, nenv' @ t_nenv in
+  (compile_functions_help flist [] [])
 
 
 (* generate asm prelude *)
 let prelude (defsys : string) = sprintf "
   section .text 
-  %s
-  global our_code_starts_here" defsys
+  global our_code_starts_here 
+%s" defsys
 
 (* compilation pipeline *)
 let compile_prog (p : prog) : string =
   (* compile functions *)
   let tagged_flist, tagged_expr = (tag_program p) in
-  let finstrs, fenv = (compile_functions tagged_flist) in
+  let finstrs, fenv, nenv = (compile_functions tagged_flist) in
   
   (* compile main expresion *)
-  let instrs = (compile_expr tagged_expr empty_regenv fenv) in
+  let instrs = (compile_expr tagged_expr empty_regenv fenv nenv) in
   let einstrs = (callee_instrs "our_code_starts_here" instrs 0) in
 
   (* variables internas *)
-  let defsys_list = [ "error" ; "print" ] in (* TODO esto se va a usar con defsys, eg: (sysdef print any -> any) *)
-  let defsys_string = (List.fold_left (fun res i -> res ^ sprintf "extern %s\n" i) "" defsys_list) in
+  let defsys_list, _ = List.split nenv in
+  let extern_list = [ "error"] @ defsys_list in
+  let defsys_string = (List.fold_left (fun res i -> res ^ sprintf "  extern %s\n" i) "" extern_list) in
 
   (* compile program *)
   (prelude defsys_string) ^ (pp_instrs finstrs) ^ (pp_instrs einstrs)
