@@ -21,7 +21,7 @@ let get_offset (env : reg_env) : int =
 (* extiende el ambiente con una variable del usuario *)
 let extend_regenv (x : string) (env : reg_env) : (reg_env * int) =
   let reg_offset = (get_offset env) in
-  ((x, RegOffset (RSP, reg_offset)) :: env, reg_offset)
+  ((x, RegOffset (RBP, reg_offset)) :: env, reg_offset)
 
 let extend_regenv_reg (x : string * arg) (env : reg_env) : (reg_env) =
   let id, register = x in
@@ -73,16 +73,16 @@ let callee_gensym =
     !b_counter );;
 
 (* prelude for callee *)
-let callee_start (name : string) : instruction list =
-  [ ILabel(name) ; IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP) ]
+let callee_start (name : string) (num : int): instruction list =
+  [ ILabel(name) ; IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP); ISub(Reg RSP, (rsp_offset (num*8))) ]
   
 
 (* return for callee *)
 let callee_end : (instruction list) =
   [ IMov(Reg RSP, Reg RBP) ; IPop(Reg RBP) ; IRet ]
 
-let callee_instrs (name : string) (instrs : instruction list) : instruction list =
-  (callee_start name) @ instrs @ callee_end
+let callee_instrs (name : string) (instrs : instruction list) (num : int) : instruction list =
+  (callee_start name num) @ instrs @ callee_end
 
 
 let ccall_reg (num : int) : (instruction list) =
@@ -166,11 +166,11 @@ let caller_restore =
   [ IPop(Reg RDI) ; IPop(Reg RSI) ; IPop(Reg RDX) ; IPop(Reg RCX) ; IPop(Reg R8) ; IPop(Reg R9) ]
 
 (* generate instruction for call *)
-let caller_val (target : string) (args : instruction list) (num : int) (stack_size : int): instruction list =
-  [ ISub(Reg RSP, rsp_offset (stack_size*8)) ] @ caller_save @ args @ [ ICall(target) ] @ (* pass the arguments and call the function *)
+let caller_val (target : string) (args : instruction list) (num : int): instruction list =
+  caller_save @ args @ [ ICall(target) ] @ (* pass the arguments and call the function *)
   (if num >= 7 then [ IAdd(Reg RSP, rsp_offset (num - 6)) ] else []) @ caller_restore
 
-let caller_instrs (target : string) (instrs_list : instruction list list) (stack_size : int): instruction list =
+let caller_instrs (target : string) (instrs_list : instruction list list): instruction list =
   let instrs = (List.rev (caller_args instrs_list)) in (* arguments for the call *)
   let args_num = List.length instrs_list in (* number of arguments *)
-    (caller_val target instrs args_num stack_size)
+    (caller_val target instrs args_num)

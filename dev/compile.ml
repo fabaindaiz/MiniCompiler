@@ -106,7 +106,7 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
   | ELet (id, e, body, _) -> 
     let (env', reg_offset) = extend_regenv id env in
       (compile_expr e env fenv nenv) @ (* se extrae valor de e y queda en RAX *)
-      [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @ (* se pasa el valor de RAX a la direccion RSP disponible *)
+      [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @ (* se pasa el valor de RAX a la direccion RBP disponible *)
       (compile_expr body env' fenv nenv) (* se compila body con nuevo env *)
   | EIf (c, t, e, tag) -> 
     let else_label = sprintf "if_false_%d" tag in
@@ -123,8 +123,8 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
       (match args_f with
         | Some n -> if (n == List.length p) then
           (match name_f with
-            | Some f' -> (caller_instrs f' (compile_elist p) (get_offset env))
-            | None -> (caller_instrs f (compile_elist p) (get_offset env)) )
+            | Some f' -> (caller_instrs f' (compile_elist p))
+            | None -> (caller_instrs f (compile_elist p)) )
           else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
         | None -> failwith(sprintf "undefined funtion: %s" f) )
       
@@ -135,7 +135,7 @@ let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : (in
   | EDefFun (fun_name, arg_list, e, _) ->
     let instrs = (compile_expr (e) (env_from_args arg_list) fenv nenv) in
     let fenv' = (fun_name, List.length arg_list) :: fenv in
-      (callee_instrs fun_name instrs , fenv', nenv)
+      (callee_instrs fun_name instrs (num_expr e + List.length arg_list), fenv', nenv)
   | EDefSys (fun_name, type_list, type_ret, tag) ->
     let call_name = fun_name ^ "_sys" in
     let fenv' = (fun_name, List.length type_list) :: fenv in
@@ -168,7 +168,7 @@ let compile_prog (p : prog) : string =
   
   (* compile main expresion *)
   let instrs = (compile_expr tagged_expr empty_regenv fenv nenv) in
-  let einstrs = (callee_instrs "our_code_starts_here" instrs) in
+  let einstrs = (callee_instrs "our_code_starts_here" instrs (num_expr tagged_expr)) in
 
   (* variables internas *)
   let defsys_list, _ = List.split nenv in
