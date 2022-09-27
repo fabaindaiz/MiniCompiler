@@ -1,0 +1,11 @@
+NAME: func pila
+DESCRIPTION: evaluates a function declaration after saving vars in stack
+SRC:
+(
+    (def (iden x) x)
+    (def (suma x y) (+ x y))
+    (def (comp x y) (suma (iden x) (iden y)))
+    (let (x 5) (* (+ (suma 3 (comp 5 8)) x) 2))
+)
+EXPECTED:
+42
