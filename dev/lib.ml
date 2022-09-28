@@ -109,11 +109,11 @@ let ccall_list (type_list : ctype list) (tag : int) : instruction list =
     (ccall_reg num) @ (ctype_error i num tag)) [] type_list
 
 let ccall_ret (type_ret : ctype) (tag : int) : instruction list =
-  (ctype_error type_ret 0 tag)
+  (ctype_error type_ret 0 tag) 
 
 let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) (tag : int) : instruction list =
-  [ ILabel(call_name) ] @ (ccall_list type_list tag) @ [ ICall(fun_name) ] @
-  (ccall_ret type_ret tag) @ [ IRet ]
+  callee_start call_name 0 @ (ccall_list type_list tag) @ [ ICall(fun_name) ] @
+  (ccall_ret type_ret tag) @ callee_end
 
 
 (* reseteable gensym for caller *)
