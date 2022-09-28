@@ -1,11 +1,11 @@
-NAME: func alt
+NAME: func alt 2
 DESCRIPTION: evaluates a recursive function declaration
 SRC:
 (
-    (def (f x) (g x))
-    (def (g x) (sub1 x))
-    (f 11)
+    (def (f x) ( if (<= x 1) x (g x)))
+    (def (g x) ( f (sub1 x) ))
+    (f 5)
 )
 | Este test solo funciona con el compilador de funciones "compile_functions_alt"
 EXPECTED:
-10
+1

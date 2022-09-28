@@ -90,14 +90,14 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
   match e with 
   | ENum (n, _) -> 
     if n > max_int || n < min_int then
-      failwith ("Integer overflow: " ^ (Int64.to_string n))
+      failwith (sprintf "Integer overflow: %Ld" n)
     else [ IMov (Reg RAX, Const (Int64.shift_left n 1)) ] 
   | EBool (b, _) ->
     let val_rep = (if b then val_true else val_false) in
       [ IMov (Reg RAX, Const (val_rep)) ]
   | EId (s, _) -> begin match List.assoc_opt s env with
     | Some arg ->[ IMov (Reg RAX, arg)] (* mueve valor desde la pila a RAX *)
-    | None -> failwith("unbound variable in regenv")
+    | None -> failwith(sprintf "unbound variable %s in regenv" s)
     end
   | EPrim1 (op, e, tag) -> 
     (compile_prim1 compile_expr op e tag env fenv nenv)
