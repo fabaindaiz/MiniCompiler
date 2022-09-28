@@ -123,35 +123,81 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
       (match args_f with
         | Some n -> if (n == List.length p) then
           (match name_f with
-            | Some f' -> (caller_instrs f' (compile_elist p))
-            | None -> (caller_instrs f (compile_elist p)) )
+            | Some f' -> (caller_instrs f' (compile_elist p)) (* defsys *)
+            | None -> (caller_instrs f (compile_elist p)) ) (* deffun *)
           else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
         | None -> failwith(sprintf "undefined funtion: %s" f) )
-      
 
-(* compile a function *)
+
+(* Caso 1 : Compilación normal *)
+
+(* Compila cada ambiente y función 
+  Utilizando esta compilación una función solo se pueden llamar a si misma o otra funciones definidas antes *)
+
+(* compile a enviroment & function *)
 let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : (instruction list * funenv * nameenv) =
   match func with
   | EDefFun (fun_name, arg_list, e, _) ->
-    let instrs = (compile_expr (e) (env_from_args arg_list) fenv nenv) in
-    let fenv' = (fun_name, List.length arg_list) :: fenv in
-      (callee_instrs fun_name instrs (num_expr e + List.length arg_list), fenv', nenv)
+    let fenv' = (fun_name, List.length arg_list) :: fenv in (* definir esto antes permite funciones recursivas *)
+    let instrs = (compile_expr (e) (env_from_args arg_list) fenv' nenv) in
+      (callee_instrs fun_name instrs (num_expr e + (List.length arg_list)), fenv', nenv)
   | EDefSys (fun_name, type_list, type_ret, tag) ->
     let call_name = fun_name ^ "_sys" in
     let fenv' = (fun_name, List.length type_list) :: fenv in
-    let nenv' = (fun_name, call_name) :: nenv in
+    let nenv' = (fun_name, call_name) :: nenv in (* almacena el nombre interno para cada defsys *)
       (callee_defsys call_name fun_name type_list type_ret tag, fenv', nenv')
 
 (* compile several functions *)
 let compile_functions (flist : tag efundef list) : (instruction list * funenv * nameenv) =
-  let rec compile_functions_help (flist : tag efundef list) (fenv : funenv) (nenv : nameenv) : instruction list * funenv * nameenv =
+  let rec compile_functions_help (flist : tag efundef list) (fenv : funenv) (nenv : nameenv) : (instruction list * funenv * nameenv) =
     match flist with
     | [] -> [], [], []
-    | head::tail -> 
-      let instrs', fenv', nenv' = (compile_function head fenv nenv) in
-      let t_instrs, t_fenv, t_nenv = (compile_functions_help tail fenv' nenv') in
-        instrs' @ t_instrs, fenv' @ t_fenv, nenv' @ t_nenv in
+    | flist_head::flist_tail -> 
+      let instrs', fenv', nenv' = (compile_function flist_head fenv nenv) in
+      let t_instrs, t_fenv, t_nenv = (compile_functions_help flist_tail fenv' nenv') in
+        (instrs' @ t_instrs, fenv' @ t_fenv, nenv' @ t_nenv) in
   (compile_functions_help flist [] [])
+
+
+(* Caso 2 : Compilación por pasos *)
+
+(* Compila todos los ambiente y luego todas las funciones
+  Utilizando esta compilación una función pueden llamar otras funciones definidas despues de esta *)
+
+(* compile a enviroment *)
+let compile_enviroment (func : tag efundef) (fenv : funenv) (nenv : nameenv) : (funenv * nameenv) =
+  match func with
+  | EDefFun (fun_name, arg_list, _, _) ->
+    let fenv' = (fun_name, List.length arg_list) :: fenv in
+      (fenv', nenv)
+  | EDefSys (fun_name, type_list, _, _) ->
+    let call_name = fun_name ^ "_sys" in
+    let fenv' = (fun_name, List.length type_list) :: fenv in
+    let nenv' = (fun_name, call_name) :: nenv in (* almacena el nombre interno para cada defsys *)
+      (fenv', nenv')
+
+(* compile a function *)
+let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : instruction list =
+  match func with
+  | EDefFun (fun_name, arg_list, e, _) ->
+    let instrs = (compile_expr (e) (env_from_args arg_list) fenv nenv) in
+      (callee_instrs fun_name instrs (num_expr e + (List.length arg_list)))
+  | EDefSys (fun_name, type_list, type_ret, tag) ->
+    let call_name = fun_name ^ "_sys" in
+      (callee_defsys call_name fun_name type_list type_ret tag)
+
+(* compile several functions *)
+let compile_functions_alt (flist : tag efundef list) : (instruction list * funenv * nameenv) =
+  let rec compile_enviroments_help (flist : tag efundef list) (fenv : funenv) (nenv : nameenv) : (funenv * nameenv) =
+    match flist with
+    | [] -> [], []
+    | flist_head::flist_tail -> 
+      let fenv', nenv' = (compile_enviroment flist_head fenv nenv) in
+      let t_fenv, t_nenv = (compile_enviroments_help flist_tail fenv' nenv') in
+        (fenv' @ t_fenv, nenv' @ t_nenv) in
+  let fenv', nenv' = (compile_enviroments_help flist [] []) in
+  let instrs = List.fold_left (fun res f -> res @ (compile_function f fenv' nenv')) [] flist in
+    (instrs, fenv', nenv')
 
 
 (* generate asm prelude *)
@@ -164,7 +210,7 @@ let prelude (defsys : string) = sprintf "
 let compile_prog (p : prog) : string =
   (* compile functions *)
   let tagged_flist, tagged_expr = (tag_program p) in
-  let finstrs, fenv, nenv = (compile_functions tagged_flist) in
+  let finstrs, fenv, nenv = (compile_functions_alt tagged_flist) in (* Usar compile_functions o compile_functions_alt *)
   
   (* compile main expresion *)
   let instrs = (compile_expr tagged_expr empty_regenv fenv nenv) in

@@ -1,0 +1,9 @@
+NAME: func rec
+DESCRIPTION: evaluates a recursive function declaration
+SRC:
+(
+    (def (fact x) (if (= x 0) 1 (* x (fact (sub1 x))) ))
+    (fact 5)
+)
+EXPECTED:
+120
