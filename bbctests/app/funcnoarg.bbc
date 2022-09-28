@@ -1,4 +1,4 @@
-NAME: func
+NAME: func no args
 DESCRIPTION: evaluates a function declaration
 SRC:
 (

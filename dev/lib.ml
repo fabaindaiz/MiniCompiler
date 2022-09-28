@@ -93,8 +93,8 @@ let ccall_reg (num : int) : (instruction list) =
   | 4 -> [ IMov(Reg RAX, Reg RCX) ]
   | 5 -> [ IMov(Reg RAX, Reg R8) ]
   | 6 -> [ IMov(Reg RAX, Reg R9) ]
-  | _ -> [ IMov(Reg RAX, RegOffset(RSP, 0)) ] (* TODO verificar el offset que debe ir *)
-
+  | _ -> [ IMov(Reg RAX, RegOffset(RBP, -num+5)) ] (* arg 7 está en rbp + 16 y de ahi subiendo (bajando¿) *)
+        @ [IPush(Reg RAX)] (* como se movio la pila hay que volver a poner el valor *)
 let ctype_error (ctype : ctype) (num : int) (tag : int) : instruction list =
   match ctype with
   | CAny -> []
@@ -150,7 +150,7 @@ let env_from_args (args : string list) : reg_env =
       | 4 -> extend_regenv_reg (id, (Reg RCX)) (env_arg_help tail (count+1))
       | 5 -> extend_regenv_reg (id, (Reg R8)) (env_arg_help tail (count+1))
       | 6 -> extend_regenv_reg (id, (Reg R9)) (env_arg_help tail (count+1))
-      | _ -> extend_regenv_reg (id, (RegOffset (RSP, count-6))) (env_arg_help tail (count+1)) )
+      | _ -> extend_regenv_reg (id, (RegOffset (RBP, -count+5))) (env_arg_help tail (count+1)) )
     in env_arg_help args 1 
 
 
@@ -168,7 +168,7 @@ let caller_restore =
 (* generate instruction for call *)
 let caller_val (target : string) (args : instruction list) (num : int): instruction list =
   caller_save @ args @ [ ICall(target) ] @ (* pass the arguments and call the function *)
-  (if num >= 7 then [ IAdd(Reg RSP, rsp_offset (num - 6)) ] else []) @ caller_restore
+  (if num >= 7 then [ IAdd(Reg RSP, Const (Int64.of_int ((num - 6) * 8))) ] else []) @ caller_restore
 
 let caller_instrs (target : string) (instrs_list : instruction list list): instruction list =
   let instrs = (List.rev (caller_args instrs_list)) in (* arguments for the call *)

@@ -55,6 +55,10 @@ VAL max(VAL val1, VAL val2) {
   return val1 > val2? val1 : val2;
 }
 
+VAL megamax(VAL v1, VAL v2, VAL v3, VAL v4, VAL v5, VAL v6, VAL v7, VAL v8){
+  return max(max(max(max(max(max(max(v1 , v2),v3),v4),v5),v6),v7),v8);
+}
+
 void print_result(VAL val) {
   char buffer[50];
   get_value(buffer, val);

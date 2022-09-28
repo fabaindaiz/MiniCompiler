@@ -1,0 +1,9 @@
+NAME: func args 6+
+DESCRIPTION: evaluates a function declaration with many args
+SRC:
+(
+    (def (g q w e r t y u i) (+ (+ (+ q w) (+ e r))(+ (+ t y)(+ u i))) )
+    (g 1 2 3 4 5 6 7 8)
+)
+EXPECTED:
+36

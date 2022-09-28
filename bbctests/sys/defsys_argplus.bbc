@@ -1,0 +1,10 @@
+NAME: C calls args 6+
+SRC:
+(
+  (defsys megamax int int int int int int int int -> int)
+  (defsys print any -> any)
+  (if (<= (print (megamax 1 2 3 4 5 6 7 8)) 4) true (not true)))
+)
+EXPECTED:
+> 8
+false
