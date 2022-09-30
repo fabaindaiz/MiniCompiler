@@ -1,6 +1,10 @@
 NAME: and nolazy
 DESCRIPTION: evaluates a nolazy and
 SRC:
-(and false true)
+(
+    (defsys print any -> any)
+    (and true (not (<= (print 0) 42)) )
+)
 EXPECTED:
+> 0
 false

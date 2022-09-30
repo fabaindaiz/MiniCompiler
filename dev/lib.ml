@@ -137,20 +137,20 @@ let caller_match (num : int) : instruction list =
   | 6 -> [ IMov(Reg R9, Reg RAX) ]
   | _ -> [ IPush(Reg RAX) ]
 
-(* get enviroment for args list *)  
+(* get enviroment from args list to compile function *)  
 let env_from_args (args : string list) : reg_env =
   let rec env_arg_help (l : string list) (count : int) : reg_env = 
     match l with
     | [] -> empty_regenv
     | id::tail ->
       (match count with
-      | 1 -> extend_regenv_reg (id, (Reg RDI)) (env_arg_help tail (count+1))
-      | 2 -> extend_regenv_reg (id, (Reg RSI)) (env_arg_help tail (count+1))
-      | 3 -> extend_regenv_reg (id, (Reg RDX)) (env_arg_help tail (count+1))
-      | 4 -> extend_regenv_reg (id, (Reg RCX)) (env_arg_help tail (count+1))
-      | 5 -> extend_regenv_reg (id, (Reg R8)) (env_arg_help tail (count+1))
-      | 6 -> extend_regenv_reg (id, (Reg R9)) (env_arg_help tail (count+1))
-      | _ -> extend_regenv_reg (id, (RegOffset (RBP, -count+5))) (env_arg_help tail (count+1)) )
+      | 1 -> extend_regenv_reg (id, (Reg RDI))
+      | 2 -> extend_regenv_reg (id, (Reg RSI)) 
+      | 3 -> extend_regenv_reg (id, (Reg RDX)) 
+      | 4 -> extend_regenv_reg (id, (Reg RCX)) 
+      | 5 -> extend_regenv_reg (id, (Reg R8)) 
+      | 6 -> extend_regenv_reg (id, (Reg R9)) 
+      | _ -> extend_regenv_reg (id, (RegOffset (RBP, -count+5)))) (env_arg_help tail (count+1))
     in env_arg_help args 1 
 
 

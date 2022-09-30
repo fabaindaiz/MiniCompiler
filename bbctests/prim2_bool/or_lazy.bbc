@@ -1,6 +1,9 @@
 NAME: or lazy
 DESCRIPTION: evaluates a logic or
 SRC:
-(or true (sub1 0))
+(
+    (defsys print any -> any)
+    (or true (print (sub1 0)))
+)
 EXPECTED:
 true
