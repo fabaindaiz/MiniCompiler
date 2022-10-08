@@ -16,8 +16,11 @@ let rec num_expr (expr : tag eexpr) : int =
   | EPrim2 (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
   | ELet (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
   | EIf (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
-  | EApp (_, _, _) -> 1
-
+  | EApp (_, elist, _) -> 
+    begin match elist with
+    | [] -> 0
+    | e1::tail -> (max (num_expr e1) (num_expr (EApp ("tmp", tail, 0))))
+    end
 
 (* constants *)
 let min_int = Int64.div Int64.min_int 2L
@@ -181,7 +184,7 @@ let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : ins
   match func with
   | EDefFun (fun_name, arg_list, e, _) ->
     let instrs = (compile_expr (e) (env_from_args arg_list) fenv nenv) in
-      (callee_instrs fun_name instrs (num_expr e + (List.length arg_list)))
+      (callee_instrs fun_name instrs (num_expr e))
   | EDefSys (fun_name, type_list, type_ret, tag) ->
     let call_name = fun_name ^ "_sys" in
       (callee_defsys call_name fun_name type_list type_ret tag)

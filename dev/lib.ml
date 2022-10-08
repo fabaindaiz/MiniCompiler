@@ -15,8 +15,11 @@ type reg_env = (string * arg) list
 let empty_regenv : reg_env = []
 
 (* Obtiene el offset de la variable actual*)
-let get_offset (env : reg_env) : int =
-  1 + (List.length env)
+let rec get_offset (env : reg_env) : int =
+  match env with
+  | (_, RegOffset(_, _))::tail -> 1 + get_offset tail (* cuenta solo registros que apuntan a la pila *)
+  | _::tail -> get_offset tail
+  | _ -> 1
 
 (* extiende el ambiente con una variable del usuario *)
 let extend_regenv (x : string) (env : reg_env) : (reg_env * int) =
