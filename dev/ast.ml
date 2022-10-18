@@ -22,6 +22,7 @@ type prim2 =
 | Gte
 | Eq
 | Neq
+| Get
 
 (* Algebraic datatype for expressions *)
 type expr = 
@@ -33,6 +34,8 @@ type expr =
 | Let of string * expr * expr
 | If of expr * expr * expr
 | App of string * expr list
+| Tuple of expr list 
+| Set of expr * expr * expr 
 
 (* Algebraic tagged datatype for expressions *)
 type 'a eexpr =
@@ -44,12 +47,15 @@ type 'a eexpr =
 | ELet of string * 'a eexpr * 'a eexpr * 'a
 | EIf of 'a eexpr * 'a eexpr * 'a eexpr * 'a
 | EApp of string * 'a eexpr list * 'a
+| ETuple of 'a eexpr list * 'a
+| ESet of 'a eexpr * 'a eexpr * 'a eexpr * 'a
 
 (* C function argument types *)
 type ctype =
-  | CAny
-  | CInt
-  | CBool
+| CAny
+| CInt
+| CBool
+| CTuple of ctype list
 
 (* Function definitions *)
 (* function name, argument names, body *)
@@ -164,20 +170,33 @@ let rec string_of_expr(e : expr) : string =
     | Lte -> "<="
     | Gte -> ">="
     | Eq -> "=="
-    | Neq -> "!=") (string_of_expr e1) (string_of_expr e2)
+    | Neq -> "!="
+    | Get -> "get") (string_of_expr e1) (string_of_expr e2)
+    | Tuple (exprs) -> sprintf "(tup %s)" (string_of_exprs exprs) 
+    | Set (e, k, v) -> sprintf "(set %s %s %s)" (string_of_expr e) (string_of_expr k) (string_of_expr v) 
   | Let (x, e1, e2) -> sprintf "(let (%s %s) %s)" x (string_of_expr e1) (string_of_expr e2) 
   | If (e1, e2, e3) -> sprintf "(if %s %s %s)" (string_of_expr e1) (string_of_expr e2) (string_of_expr e3)
   | App (f, e1) -> sprintf "(app %s (%s))" f (string_of_elist string_of_expr e1)
+  and string_of_exprs (e: expr list) : string = 
+      match e with
+      | [] -> ""
+      | h :: t -> " " ^ (string_of_expr h) ^ (string_of_exprs t) 
 
 
 (** functions below are not used, would be used if testing the parser on defs **)
 
 (* Pretty printing C types - used by testing framework *)
-let string_of_ctype(t : ctype) : string =
+let rec string_of_ctype(t : ctype) : string =
 match t with
 | CAny -> "any"
 | CInt -> "int"
 | CBool -> "bool"
+| CTuple types -> 
+        let rec string_of_types =
+            fun ls -> (match ls with
+            | [] -> ""
+            | e::l -> e ^ "," ^ string_of_types l) in
+        "("^string_of_types (List.map string_of_ctype types)^")"
 
 (* Pretty printing function definitions - used by testing framework *)
 let string_of_fundef(d : fundef) : string =

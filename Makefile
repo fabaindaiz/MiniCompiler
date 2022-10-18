@@ -48,6 +48,4 @@ clean: clean-tests
 	rm -Rf _build
 
 clean-tests:
-	rm -f bbctests/*.s bbctests/*.o bbctests/*.run bbctests/*.result bbctests/*~
-	rm -rf bbctests/*dSYM
 	find bbctests/ -type f -regex '.*\.\(o\|s\|run\|result\)' -delete
