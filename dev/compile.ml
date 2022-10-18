@@ -29,6 +29,7 @@ let min_int = Int64.div Int64.min_int 2L
 let max_int = Int64.div Int64.max_int 2L
 let int_tag = 0L
 let bool_tag = 1L
+let tuple_tag = 3L
 let bool_mask = 0x8000000000000000L
 let val_true = Int64.add Int64.min_int bool_tag (* 10..01*)
 let val_false = bool_tag (* 00..01*)
@@ -104,6 +105,19 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
     | Some arg ->[ IMov (Reg RAX, arg)] (* mueve valor desde la pila a RAX *)
     | None -> failwith(sprintf "unbound variable %s in regenv" s)
     end
+  | ETuple(elist, _) ->
+    let tuple_size = List.length elist in
+    (* compile_tuple : ejecuta instruciones para expr list y mueve los elementos a el heap *)
+    let rec compile_tuple (exprs : tag eexpr list) (count : int) : instruction list  =
+      match exprs with
+      | [] -> []
+      | e :: tail -> (compile_expr e env fenv nenv) @ 
+        [IMov(RegOffset(R15, count), Reg RAX)] @
+        (compile_tuple tail (count - 1)) in
+        [IMovq(RegOffset(R15, 0), Const (Int64.of_int tuple_size))] @ compile_tuple elist (-1) 
+        @ [IMov(Reg RAX, Reg R15)] (* coloca direccion de tupla en RAX*)
+        @ [IAdd (Reg RAX, Const tuple_tag)] (* taggea valor *)
+        @ [IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] (* offsetea puntero de la pila*)
   | EPrim1 (op, e, tag) -> 
     (compile_prim1 compile_expr op e tag env fenv nenv)
   | EPrim2 (op, e1, e2, tag) -> 
@@ -132,6 +146,7 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
             | None -> (caller_instrs f (compile_elist p)) ) (* deffun *)
           else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
         | None -> failwith(sprintf "undefined funtion: %s" f) )
+  | ESet (_, _, _, _) -> failwith ("TODO")
 
 
 (* Caso 1 : Compilación normal *)
@@ -219,7 +234,8 @@ let compile_prog (p : prog) : string =
   
   (* compile main expresion *)
   let instrs = (compile_expr tagged_expr empty_regenv fenv nenv) in
-  let einstrs = (callee_instrs "our_code_starts_here" instrs (num_expr tagged_expr)) in
+  let heap_prelude = [IMov(Reg R15, Reg RDI); IAdd(Reg R15, Const 23L); IMov(Reg R11, Const 0xfffffffffffffff8L); IAnd (Reg R15, Reg R11)] in
+  let einstrs = (callee_instrs "our_code_starts_here" (heap_prelude @ instrs) (num_expr tagged_expr)) in
 
   (* variables internas *)
   let defsys_list, _ = List.split nenv in

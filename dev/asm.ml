@@ -15,6 +15,7 @@ type reg =
 | RSI (* arg_1 *)
 | RBP (* callee-saved register *)
 | RSP (* the stack pointer, below which we can use memory *)
+| R15 (* the heap pointer *)
 
 (* arguments for instructions *)
 type arg =
@@ -25,6 +26,7 @@ type arg =
 (* asm instructions *)
 type instruction =
 | IMov of arg * arg (* Move the value of the right-side arg into the left-arg *)
+| IMovq of arg * arg
 | IAdd of arg * arg (* Increment the left-hand arg by the value of the right-hand arg *)
 | ISub of arg * arg
 | IMul of arg * arg
@@ -69,6 +71,7 @@ let pp_reg reg : string =
   | RDI -> "RDI"
   | RBP -> "RBP"
   | RSP -> "RSP"
+  | R15 -> "R15"
 
 (* arguments for instruction to string *)
 let pp_arg arg : string =
@@ -81,6 +84,7 @@ let pp_arg arg : string =
 let pp_instr instr : string =
   match instr with
   | IMov (a1, a2) -> sprintf "  mov %s, %s" (pp_arg a1) (pp_arg a2)
+  | IMovq (a1, a2) -> sprintf "  mov qword %s, %s" (pp_arg a1) (pp_arg a2)
   | IAdd (a1, a2) -> sprintf "  add %s, %s" (pp_arg a1) (pp_arg a2)
   | ISub (a1, a2) -> sprintf "  sub %s, %s" (pp_arg a1) (pp_arg a2)
   | IMul (a1, a2) -> sprintf "  imul %s, %s" (pp_arg a1) (pp_arg a2)
