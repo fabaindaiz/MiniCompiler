@@ -11,16 +11,18 @@ let rec num_expr (expr : tag eexpr) : int =
   match expr with
   | ENum (_, _) -> 1
   | EBool (_, _) -> 1
+  | ETuple (elist, _) -> num_expr_list elist
   | EId (_, _) -> 1
   | EPrim1 (_, e1, _) -> 1 + (num_expr e1)
   | EPrim2 (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
   | ELet (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
-  | EIf (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
-  | EApp (_, elist, _) -> 
-    begin match elist with
+  | EIf (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
+  | ESet (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
+  | EApp (_, elist, _) -> num_expr_list elist
+  and num_expr_list (elist: tag eexpr list) : int =
+    match elist with
     | [] -> 0
-    | e1::tail -> (max (num_expr e1) (num_expr (EApp ("tmp", tail, 0))))
-    end
+    | e1::tail -> (max (num_expr e1) (num_expr_list tail))
 
 (* constants *)
 let min_int = Int64.div Int64.min_int 2L

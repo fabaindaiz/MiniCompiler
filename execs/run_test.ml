@@ -208,10 +208,10 @@ let test_interp_compound () =
     (interp (Prim2 (Add, Prim2 (Add, Num 3L, (Prim1 (Sub1, Num 6L))), Num 12L)) empty_env empty_fenv)
     (NumV 20L)
 
-(* let lazy_and () =
+let lazy_and () =
   check value "reduces to false without throwing an error or printing"
   (interp (parse_exp (sexp_from_string "(and false (print -1))")) empty_env empty_fenv)
-  (BoolV false) *)
+  (BoolV false)
 
 let error_if_cond_not_bool () =
   let v = (fun () -> ignore @@ interp (parse_exp (sexp_from_string "(if 23 true false)")) empty_env empty_fenv) in 
@@ -460,7 +460,7 @@ let ocaml_tests = [
     test_case "A compound expression" `Quick test_interp_compound;
     test_case "A get expression" `Slow test_interp_get ;
     test_case "A set expression" `Slow test_interp_set ;
-    (* test_case "`and` is lazy" `Quick lazy_and *)
+    test_case "`and` is lazy" `Quick lazy_and
   ] ;
   "errors", [
     test_case "Addition of true" `Quick test_error_III ;

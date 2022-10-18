@@ -169,19 +169,21 @@ let rec interp (expr : expr) env fenv =
     | Not -> liftBB ( Bool.not ) (interp e env fenv))
   | Prim2 (op, e1, e2) -> 
     (match op with
-    | Add -> liftIII ( Int64.add )
-    | Sub -> liftIII ( Int64.sub )
-    | Mul -> liftIII ( Int64.mul )
-    | Div -> liftIII ( Int64.div )
-    | And -> liftBBB ( && )
-    | Or -> liftBBB ( || )
-    | Lt -> liftBBB ( < )
-    | Gt -> liftBBB ( > )
-    | Lte -> liftIIB ( <= )
-    | Gte -> liftIIB ( >= )
-    | Eq -> liftIIB ( == )
-    | Neq -> liftIIB ( != )
-    | Get -> get_elem) (interp e1 env fenv) (interp e2 env fenv)
+    | Add -> liftIII ( Int64.add ) (interp e1 env fenv) (interp e2 env fenv)
+    | Sub -> liftIII ( Int64.sub ) (interp e1 env fenv) (interp e2 env fenv)
+    | Mul -> liftIII ( Int64.mul ) (interp e1 env fenv) (interp e2 env fenv)
+    | Div -> liftIII ( Int64.div ) (interp e1 env fenv) (interp e2 env fenv)
+    | And -> if bool_of_value (interp e1 env fenv) then
+      BoolV (bool_of_value (interp e2 env fenv)) else BoolV false
+    | Or -> if not (bool_of_value (interp e1 env fenv)) then
+      BoolV (bool_of_value (interp e2 env fenv)) else BoolV true
+    | Lt -> liftBBB ( < ) (interp e1 env fenv) (interp e2 env fenv)
+    | Gt -> liftBBB ( > ) (interp e1 env fenv) (interp e2 env fenv)
+    | Lte -> liftIIB ( <= ) (interp e1 env fenv) (interp e2 env fenv)
+    | Gte -> liftIIB ( >= ) (interp e1 env fenv) (interp e2 env fenv)
+    | Eq -> liftIIB ( == ) (interp e1 env fenv) (interp e2 env fenv)
+    | Neq -> liftIIB ( != ) (interp e1 env fenv) (interp e2 env fenv)
+    | Get -> get_elem (interp e1 env fenv) (interp e2 env fenv))
   | Let (x, e , b) -> interp b (extend_env [x] [(interp e env fenv)] env) fenv
   | If (e1, e2, e3) ->
     let b = bool_of_value (interp e1 env fenv) in
