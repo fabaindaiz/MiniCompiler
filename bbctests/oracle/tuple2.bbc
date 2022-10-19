@@ -1,0 +1,6 @@
+NAME: tuple nested
+DESCRIPTION: evaluates a tuple
+SRC:
+(tup 5 true (tup false 11))
+EXPECTED:
+|ORACLE

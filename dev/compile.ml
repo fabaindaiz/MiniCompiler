@@ -148,21 +148,26 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
             | None -> (caller_instrs f (compile_elist p)) ) (* deffun *)
           else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
         | None -> failwith(sprintf "undefined funtion: %s" f) )
-  | ETuple(elist, _) ->
+  | ETuple(elist, tag) ->
+    let (env', reg_offset) = extend_regenv (sprintf "temp_%d" tag) env in
+    let init_R15 = RegOffset (RBP, reg_offset) in
     let tuple_size = List.length elist in
     (* compile_tuple : ejecuta instruciones para expr list y mueve los elementos a el heap *)
     let rec compile_tuple (exprs : tag eexpr list) (count : int) : instruction list  =
       match exprs with
       | [] -> []
       | e :: tail ->
-        (compile_expr e env fenv nenv) @ (* Compila el valor *)
-        [IMov (RegOffset(R15, count), Reg RAX)] @ (* Lo pone en el heap *)
-        (compile_tuple tail (count - 1)) in (* Hace lo mismo con el resto *)
-          [IMovq (RegOffset(R15, 0), Const (Int64.of_int tuple_size))] (* Ubica el numero de elementos *)
-          @ compile_tuple elist (-1) (* Compila la tupla *)
-          @ [IMov (Reg RAX, Reg R15)] (* coloca direccion de tupla en RAX*)
-          @ [IAdd (Reg RAX, Const tuple_tag)] (* taggea valor *)
-          @ [IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] (* offsetea puntero de la pila*)
+        (compile_expr e env' fenv nenv) @ (* Compila el valor *)
+        [IMov (Reg R11, init_R15)] @
+        [IMov (RegOffset(R11, count), Reg RAX)] @ (* Lo pone en el heap *)
+        (compile_tuple tail (count - 1)) (* Hace lo mismo con el resto *) in 
+    [IMov (init_R15, Reg R15)] (* moves heap pointer to stack *)
+    @ [IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] (* offsetea puntero de heap*)
+    @ [IMov (Reg R11, init_R15)]
+    @ [IMovq (RegOffset(R11, 0), Const (Int64.of_int tuple_size))] (* Ubica el numero de elementos *)
+    @ compile_tuple elist (-1) (* Compila la tupla *)
+    @ [IMov (Reg RAX, init_R15)] (* coloca direccion de tupla en RAX*)
+    @ [IAdd (Reg RAX, Const tuple_tag)] (* taggea valor *)
   | ESet (_, _, _, _) -> failwith ("TODO")
 
 

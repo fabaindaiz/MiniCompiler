@@ -17,19 +17,14 @@ void get_value(char* buffer, VAL val) {
   if ((val & TUPLE_TAG) == TUPLE_TAG) { // val is even ==> number
     VAL* point = (VAL*)(val - TUPLE_TAG);
     int64_t end = *point;
+    sprintf(buffer, "(tup");
+    buffer+=4;
     for (int i = 1; i < end + 1; i++)
     {
       char buf[50];
-      char buf2[50];
       get_value(buf, point[i]);
-      if (i==1) {
-        sprintf(buf2, "(tup %s", buf);
-      }
-      else {
-        sprintf(buf2, "%s", buf);
-      }
-      sprintf(buffer, " %s", buf2);
-      buffer+=strlen(buf2)+1;
+      sprintf(buffer, " %s", buf);
+      buffer+=strlen(buf) + 1;
     }
     sprintf(buffer, ")");
   } else if ((val & BOOL_TAG) == 0) { // val is even ==> number
