@@ -6,7 +6,6 @@ open Lib
 
 
 (* calculate an aprox number of used argument *)
-(* TODO Verificar que esto esta correcto *)
 let rec num_expr (expr : tag eexpr) : int =
   match expr with
   | ENum (_, _) -> 1
@@ -54,7 +53,7 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
 
   (* prelude to no-lazy binary primitives *)
   let normal_eval (inst : instruction list) (test) : instruction list =
-    (compile_expr e2 env fenv nenv) @ (test RAX 2 tag) @ (* set value of e2 in RAX *)
+    (compile_expr e2 env' fenv nenv) @ (test RAX 2 tag) @ (* set value of e2 in RAX *)
     
     [IMov (RegOffset (RBP, reg_offset), Reg RAX)] @ (* moves value to stack *)
     (compile_expr e1 env' fenv nenv) @ (test RAX 1 tag) @ inst in
@@ -62,7 +61,7 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
   (* if after computing one operand the result is equal to value, doesn't compute second value and mantains result 
   else compute inst as normal *)
   let lazy_eval (inst : instruction list) (test) (value : int64) : instruction list =
-    (compile_expr e1 env fenv nenv) @ (test RAX 1 tag) @ (* evalua un operando *)
+    (compile_expr e1 env' fenv nenv) @ (test RAX 1 tag) @ (* evalua un operando *)
     
     (* compara value con resultado y si es igual termina *)
     [ IMov (Reg R11, Const value) ; ICmp (Reg RAX, Reg R11) ; IJe jump_label ] @
@@ -71,10 +70,24 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     (compile_expr e2 env' fenv nenv) @ (test RAX 2 tag) @ inst @ [ILabel jump_label] in
 
   (* to generate comparative operations*)
-  let cond_eval (inst : instruction list) : (instruction list) =
+  let cond_eval (inst : instruction list) : instruction list =
     (* compares values, preemptively sets false and check condition *)
     [ ICmp (Reg RAX, RegOffset (RBP, reg_offset)) ; IMov (Reg RAX, Const val_true) ] @ inst @
-    [ IMov (Reg RAX, Const val_false) ; ILabel(jump_label) ] in (* if true, overrides RAX *)
+    [ IMov (Reg RAX, Const val_false) ; ILabel (jump_label) ] in (* if true, overrides RAX *)
+
+  let tuple_eval : instruction list =
+    (compile_expr e1 env' fenv nenv) @ (error_not_tuple RAX 1 tag) @
+    [ ISub (Reg RAX, Const 1L) ] @ (* untag pointer *)
+    [ IMov (RegOffset (RBP, reg_offset), Reg RAX)] @
+    [ IMov (Reg R11, RegOffset(RAX, 0)) ] @ (* move size to R11 *)
+
+    (compile_expr e2 env' fenv nenv) @ (error_not_number RAX 2 tag) @
+    [ ISar (Reg RAX, Const 1L) ] @
+    [ ICmp (Reg RAX, Const 0L) ; IMov(Reg RSI, Reg RAX) ; IMov(Reg RDI, Const 10L) ; IJl ("error") ] @ (* make sure the index is non-negative *)
+    [ ICmp (Reg RAX, Reg R11) ; IMov(Reg RSI, Reg RAX) ; IMov(Reg RDI, Const 11L) ; IJge ("error") ] @ (* make sure the index is within the size of the tuple *)
+
+    [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
+    [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg RAX, HeapOffset(R11, RAX))] in (* treat RAX as a pointer, and get its nth word *)
   
   let reg_offset = get_offset env in
     (match op with
@@ -91,7 +104,7 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     | Gte -> normal_eval (cond_eval [ IJge jump_label ]) error_not_number
     | Eq -> normal_eval (cond_eval [ IJe jump_label ]) error_not_number
     | Neq -> normal_eval (cond_eval [ IJne jump_label ]) error_not_number 
-    | Get -> failwith ("TODO") )
+    | Get -> tuple_eval )
 
 
 let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nameenv): instruction list =
@@ -120,9 +133,9 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
     let else_label = sprintf "if_false_%d" tag in
     let done_label = sprintf "done_%d" tag in
       (compile_expr c env fenv nenv) @ (error_not_boolean RAX 1 tag) @
-      [ IMov (Reg R11, Const val_true) ; ICmp(Reg RAX, Reg R11) ; IJne(else_label) ] @
-      (compile_expr t env fenv nenv) @ [ IJmp(done_label) ; ILabel(else_label) ] @
-      (compile_expr e env fenv nenv) @ [ ILabel(done_label) ]
+      [ IMov (Reg R11, Const val_true) ; ICmp (Reg RAX, Reg R11) ; IJne(else_label) ] @
+      (compile_expr t env fenv nenv) @ [ IJmp (done_label) ; ILabel(else_label) ] @
+      (compile_expr e env fenv nenv) @ [ ILabel (done_label) ]
   | EApp (f, p, _) -> 
     let args_f = (List.assoc_opt f fenv) in
     let name_f = (List.assoc_opt f nenv) in
@@ -141,13 +154,15 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
     let rec compile_tuple (exprs : tag eexpr list) (count : int) : instruction list  =
       match exprs with
       | [] -> []
-      | e :: tail -> (compile_expr e env fenv nenv) @ 
-        [IMov(RegOffset(R15, count), Reg RAX)] @
-        (compile_tuple tail (count - 1)) in
-        [IMovq(RegOffset(R15, 0), Const (Int64.of_int tuple_size))] @ compile_tuple elist (-1) 
-        @ [IMov(Reg RAX, Reg R15)] (* coloca direccion de tupla en RAX*)
-        @ [IAdd (Reg RAX, Const tuple_tag)] (* taggea valor *)
-        @ [IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] (* offsetea puntero de la pila*)
+      | e :: tail ->
+        (compile_expr e env fenv nenv) @ (* Compila el valor *)
+        [IMov (RegOffset(R15, count), Reg RAX)] @ (* Lo pone en el heap *)
+        (compile_tuple tail (count - 1)) in (* Hace lo mismo con el resto *)
+          [IMovq (RegOffset(R15, 0), Const (Int64.of_int tuple_size))] (* Ubica el numero de elementos *)
+          @ compile_tuple elist (-1) (* Compila la tupla *)
+          @ [IMov (Reg RAX, Reg R15)] (* coloca direccion de tupla en RAX*)
+          @ [IAdd (Reg RAX, Const tuple_tag)] (* taggea valor *)
+          @ [IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] (* offsetea puntero de la pila*)
   | ESet (_, _, _, _) -> failwith ("TODO")
 
 

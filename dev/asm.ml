@@ -22,6 +22,7 @@ type arg =
 | Const of int64 (* explicit numeric constants *)
 | Reg of reg (* any named and stack register *)
 | RegOffset of reg * int (* RegOffset(reg, i) represents address [reg + 8*i] *)
+| HeapOffset of reg * reg
 
 (* asm instructions *)
 type instruction =
@@ -79,6 +80,7 @@ let pp_arg arg : string =
   | Const n -> sprintf "%#Lx" n
   | Reg r -> pp_reg r
   | RegOffset (a1, a2) -> sprintf "[%s - %d]" (pp_reg a1) (8  * a2)
+  | HeapOffset (a1, a2) -> sprintf "[%s + %s]" (pp_reg a1) (pp_reg a2)
 
 (* asm instruction to string *)
 let pp_instr instr : string =

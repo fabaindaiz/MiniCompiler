@@ -39,24 +39,31 @@ let gensym =
     sprintf "%s_%d" basename !a_counter);;
 
 
-let error_tag = 1L
 let err_not_number = 1L
 let err_not_boolean = 2L
+let err_not_tuple = 3L
 
 (* apply register test *)
-let error_asm (error : int64) (ret : reg) (reg : reg) (num : int) (tag : int) : instruction list = 
+let error_asm (error : int64) (ret : reg) (reg : reg) (error_tag : int64) (num : int) (tag : int) : instruction list = 
   let test_label = sprintf "test%d_%d" num tag in
     [ ITest(Reg reg, Const error_tag) ; IJnz(test_label) ] @ (* Testea que el registro cumpla la condición *)
     [ IMov(Reg RSI, Reg ret) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
     [ ICall("error") ; ILabel(test_label) ] (* Si la cumple, salta al label *)
 
 (* !0x...0 & 0x1 = 0x1 *)
-let error_not_number (reg : reg) (num : int) (tag : int) : instruction list = 
-  [ IMov(Reg R11, Reg reg) ; IXor(Reg R11, Const error_tag) ] @ (error_asm err_not_number RAX R11 num tag)
+let error_not_number (reg : reg) (num : int) (tag : int) : instruction list =
+  let error_tag = 1L in
+  [ IMov(Reg R11, Reg reg) ; IXor(Reg R11, Const error_tag) ] @ (error_asm err_not_number RAX R11 error_tag num tag)
 
 (*  0x...1 & 0x1 = 0x1 *)
-let error_not_boolean (reg : reg) (num : int) (tag : int) : instruction list = 
-  (error_asm err_not_boolean reg reg num tag)
+let error_not_boolean (reg : reg) (num : int) (tag : int) : instruction list =
+  let error_tag = 1L in
+  (error_asm err_not_boolean reg reg error_tag num tag)
+
+(* 0x...1 & 0x11 = 0x11 *)
+let error_not_tuple (reg : reg) (num : int) (tag : int) : instruction list =
+  let error_tag = 3L in
+  (error_asm err_not_tuple reg reg error_tag num tag) (* TODO *)
 
 
 let rsp_mask = 0xfffffff0

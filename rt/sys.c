@@ -5,7 +5,7 @@
 #include <inttypes.h>
 
 typedef uint64_t VAL;
-extern VAL our_code_starts_here() asm("our_code_starts_here");
+extern VAL our_code_starts_here(uint64_t* HEAP) asm("our_code_starts_here");
 
 
 const uint64_t BOOL_TAG   = 0x0000000000000001;
@@ -88,7 +88,7 @@ void print_result(VAL val) {
 
 int main(int argc, char** argv) {
   uint64_t* HEAP = calloc(1024, sizeof(uint64_t)); // Allocate 8KB of memory for now
-  VAL result = our_code_starts_here();
+  VAL result = our_code_starts_here(HEAP);
   print_result(result);
   free(HEAP);
   return 0;
