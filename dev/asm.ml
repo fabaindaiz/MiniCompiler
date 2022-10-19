@@ -5,7 +5,9 @@ open Printf
 (* registers *)
 type reg = 
 | RAX (* the register where we place answers *)
-| R12
+| R14(* callee-saved register *)
+| R13 (* callee-saved register *)
+| R12 (* callee-saved register *)
 | R11 (* temporary register *)
 | R10 (* temporary register *)
 | R9(* arg_6 *)
@@ -63,6 +65,8 @@ type instruction =
 let pp_reg reg : string =
   match reg with
   | RAX -> "RAX"
+  | R14 -> "R14"
+  | R13 -> "R13"
   | R12 -> "R12"
   | R11 -> "R11"
   | R10 -> "R10"

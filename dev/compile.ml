@@ -76,14 +76,16 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     [ IMov (Reg RAX, Const val_false) ; ILabel (jump_label) ] in (* if true, overrides RAX *)
 
   let tuple_eval : instruction list =
+    let (env', reg_tuple) = extend_regenv (sprintf "tuple_%d" tag) env' in
     (compile_expr e1 env' fenv nenv) @ (error_not_tuple RAX 3 tag) @
-    [ IMov (Reg R12, Reg RAX)] @
+    [ IMov (RegOffset (RBP, reg_tuple), Reg RAX)] @ (* guarda la tupla *)
     [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
-    [ IMov (RegOffset (RBP, reg_offset), Reg RAX)] @
-    [ IMovq (Reg R11, RegOffset(RAX, 0)) ] @ (* move size to R11 *)
+    [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
 
     (compile_expr e2 env' fenv nenv) @ (error_not_number RAX 4 tag) @
-    [ ISar (Reg RAX, Const 1L) ] @ (* TODO Manejar error *)
+    [ ISar (Reg RAX, Const 1L) ] @
+    [ IMov (Reg R12, RegOffset (RBP, reg_tuple)) ] @ 
+    [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg R11, RegOffset(R11, 0)) ] @
     (error_bad_index_low RAX R12 1 tag) @ (* make sure the index is non-negative *)
     (error_bad_index_high RAX R12 R11 2 tag) @ (* make sure the index is within the size of the tuple *)
 
@@ -161,7 +163,7 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
         (compile_expr e env' fenv nenv) @ (* Compila el valor *)
         [IMov (Reg R11, init_R15)] @
         [IMov (RegOffset(R11, count), Reg RAX)] @ (* Lo pone en el heap *)
-        (compile_tuple tail (count - 1)) (* Hace lo mismo con el resto *) in 
+        (compile_tuple tail (count - 1)) (* Hace lo mismo con el resto *) in
     [IMov (init_R15, Reg R15)] (* moves heap pointer to stack *)
     @ [IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] (* offsetea puntero de heap*)
     @ [IMov (Reg R11, init_R15)]
