@@ -98,11 +98,13 @@ let ccall_reg (num : int) : (instruction list) =
   | 6 -> [ IMov(Reg RAX, Reg R9) ]
   | _ -> [ IMov(Reg RAX, RegOffset(RBP, -num+5)) ] (* arg 7 está en rbp + 16 y de ahi subiendo (bajando¿) *)
         @ [IPush(Reg RAX)] (* como se movio la pila hay que volver a poner el valor *)
+
 let ctype_error (ctype : ctype) (num : int) (tag : int) : instruction list =
   match ctype with
   | CAny -> []
   | CInt -> (error_not_number RAX num tag)
   | CBool -> (error_not_boolean RAX num tag)
+  | CTuple _ -> failwith ("TODO")
 
 (* c calls type verification *)
 let ccall_list (type_list : ctype list) (tag : int) : instruction list =

@@ -17,11 +17,12 @@ match v with
 | NumV n -> Int64.to_string n
 | BoolV b -> if b then "true" else "false"
 | TupleV vals -> 
-        let rec string_of_val_list =
-            fun ls -> (match ls with
-            | [] -> ""
-            | e::l -> " " ^ string_of_val !e ^ string_of_val_list l) in 
-        "(tup"^(string_of_val_list vals)^")"
+  let rec string_of_val_list =
+    fun ls -> (match ls with
+    | [] -> ""
+    | e::l -> " " ^ string_of_val !e ^ string_of_val_list l) in 
+  "(tup"^(string_of_val_list vals)^")"
+
 
 (* Lexical Environment *)
 type env = (string * value) list
@@ -37,6 +38,7 @@ let lookup_env : string -> env -> value =
     | Some v -> v
     | None -> raise (CTError (sprintf "Unbound identifier: %s" s))
 
+
 (* Function Environment *)
 type fenv = fundef list
 let empty_fenv : fenv = []
@@ -45,6 +47,7 @@ let rec lookup_fenv : string -> fenv -> fundef =
     match fenv with
     | [] -> raise (CTError (sprintf "Undefined function: %s" s))
     | (f::fs) -> if fundef_name f = s then f else lookup_fenv s fs
+
 
 (* Type checks *)
 let raise_type_error (expected_type_s : string) (ill_value : value) : 'a =
@@ -55,24 +58,24 @@ let bool_of_value (v : value) : bool =
   | BoolV b -> b
   | _ -> raise_type_error "boolean" v
 
+
 (* Lifting functions on OCaml primitive types to operate on language values
    They throw a runtime type error if any of the received arguments is ill-typed,
    reporting the first infringing value (from left to right) if there are multiple.
 *)
+
+let liftBB : (bool -> bool) -> value -> value =
+  fun op e ->
+    match e with
+    | BoolV b -> BoolV (op b)
+    | _ -> raise (RTError (Printf.sprintf "Expected a boolean, but got %s" (string_of_val e)))
+
 let liftIII : (int64 -> int64 -> int64) -> value -> value -> value =
   fun op e1 e2 ->
     match e1, e2 with
     | NumV n1, NumV n2 -> NumV (op n1 n2)
     | NumV _, _ -> raise_type_error "integer" e2
     | _ -> raise_type_error "integer" e1
-
-
-(* Lifting functions on OCaml primitive types to operate on language values *)
-let liftBB : (bool -> bool) -> value -> value =
-  fun op e ->
-    match e with
-    | BoolV b -> BoolV (op b)
-    | _ -> raise (RTError (Printf.sprintf "Expected a boolean, but got %s" (string_of_val e)))
 
 let liftBBB : (bool -> bool -> bool) -> value -> value -> value =
   fun op e1 e2 ->
@@ -88,32 +91,35 @@ let liftIIB : (int64 -> int64 -> bool) -> value -> value -> value =
     | NumV _, _ -> raise_type_error "integer" e2
     | _ -> raise_type_error "integer" e1
 
+
 let raise_out_of_bounds_error (index : int) (tuple : value) : 'a =
-  raise (RTError (sprintf "Index out of bounds: Tried to access index %d of %s"
-                          index (string_of_val tuple)))
+  raise (RTError (sprintf "Index out of bounds: Tried to access index %d of %s" index (string_of_val tuple)))
   
+
+(* Tuple functions *)
 let get_ref : 'a list -> int64 -> 'a =
   fun ts n ->
     let (index, tup_len) = ((Int64.to_int n), List.length ts) in
-    if index >= 0 && index < tup_len then
-      List.nth ts index else
-        raise_out_of_bounds_error index (TupleV ts)
+      if index >= 0 && index < tup_len then
+        List.nth ts index
+      else raise_out_of_bounds_error index (TupleV ts)
 
 let get_elem : value -> value -> value =
-    fun v1 v2 ->
-        match v1, v2 with
-      | TupleV ts, NumV n -> !(get_ref ts n)
-      | TupleV _, _ -> raise_type_error "integer" v2
-      | _ -> raise_type_error "tuple" v1
+  fun v1 v2 ->
+    match v1, v2 with
+    | TupleV ts, NumV n -> !(get_ref ts n)
+    | TupleV _, _ -> raise_type_error "integer" v2
+    | _ -> raise_type_error "tuple" v1
 
 let set_elem : value -> value -> value -> value = 
     fun v1 v2 v3 -> 
-        match v1,v2 with
+      match v1,v2 with
       | TupleV ts, NumV n ->
         let elem = get_ref ts n in
-        elem := v3 ; TupleV ts
+          elem := v3 ; TupleV ts
       | TupleV _, _ -> raise_type_error "integer" v2
       | _ -> raise_type_error "tuple" v1
+
 
 (* Sys functions *)
 let defs_prelude : fundef list = [
@@ -133,13 +139,15 @@ let rec check_type (t : ctype) (v : value) : value =
     | _, CInt -> raise_type_error "integer" v
     | _, CBool -> raise_type_error "boolean" v
     | _, CTuple _ -> raise_type_error "tuple" v
-            
+    
+
 (* Arity checks *)
 let raise_arity_mismatch (fun_id : string) (expected : int) (received : int) : 'a =
   raise (CTError (sprintf "Arity mismatch: %s expected %d arguments but got %d" fun_id expected received))
 
 let check_arity (fun_id : string) (expected : int) (received : int) : unit =
   if expected == received then () else raise_arity_mismatch fun_id expected received
+
 
 (* provide a dummy (non-C) interpretation of sys functions print and max *)
 let interp_sys name vals = 
@@ -188,7 +196,8 @@ let rec interp (expr : expr) env fenv =
   | If (e1, e2, e3) ->
     let b = bool_of_value (interp e1 env fenv) in
     interp (if b then e2 else e3) env fenv
-  | App ("print", [x]) -> interp_sys "print" [(interp x env fenv)]
+  (* | App ("print", [x]) -> interp_sys "print" [(interp x env fenv)]
+    Es necesario? Según yo ya funciona con lo de abajo *)
   | App (name, args) -> 
     let vals = List.map (fun e -> interp e env fenv) args in
     let received_count = List.length vals in
@@ -200,12 +209,11 @@ let rec interp (expr : expr) env fenv =
       check_arity name (List.length arg_types) received_count ;
       check_type ret_type @@ interp_sys name (List.map2 check_type arg_types vals))
   | Tuple exprs -> 
-        TupleV (List.map (fun e -> (ref (interp e env fenv))) exprs)
+    TupleV (List.map (fun e -> (ref (interp e env fenv))) exprs)
   | Set (e,k,v) ->
-        let t = (interp e env fenv) in
-        let i = (interp k env fenv) in
-        set_elem t i (interp v env fenv)
-
+    let t = (interp e env fenv) in
+    let i = (interp k env fenv) in
+      set_elem t i (interp v env fenv)
 
 
 let interp_prog prog env =

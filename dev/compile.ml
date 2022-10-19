@@ -24,6 +24,7 @@ let rec num_expr (expr : tag eexpr) : int =
     | [] -> 0
     | e1::tail -> (max (num_expr e1) (num_expr_list tail))
 
+  
 (* constants *)
 let min_int = Int64.div Int64.min_int 2L
 let max_int = Int64.div Int64.max_int 2L
@@ -89,7 +90,8 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     | Lte -> normal_eval (cond_eval [ IJle jump_label ]) error_not_number
     | Gte -> normal_eval (cond_eval [ IJge jump_label ]) error_not_number
     | Eq -> normal_eval (cond_eval [ IJe jump_label ]) error_not_number
-    | Neq -> normal_eval (cond_eval [ IJne jump_label ]) error_not_number )
+    | Neq -> normal_eval (cond_eval [ IJne jump_label ]) error_not_number 
+    | Get -> failwith ("TODO") )
 
 
 let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nameenv): instruction list =
@@ -101,23 +103,10 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
   | EBool (b, _) ->
     let val_rep = (if b then val_true else val_false) in
       [ IMov (Reg RAX, Const (val_rep)) ]
-  | EId (s, _) -> begin match List.assoc_opt s env with
+  | EId (s, _) ->
+    (match List.assoc_opt s env with
     | Some arg ->[ IMov (Reg RAX, arg)] (* mueve valor desde la pila a RAX *)
-    | None -> failwith(sprintf "unbound variable %s in regenv" s)
-    end
-  | ETuple(elist, _) ->
-    let tuple_size = List.length elist in
-    (* compile_tuple : ejecuta instruciones para expr list y mueve los elementos a el heap *)
-    let rec compile_tuple (exprs : tag eexpr list) (count : int) : instruction list  =
-      match exprs with
-      | [] -> []
-      | e :: tail -> (compile_expr e env fenv nenv) @ 
-        [IMov(RegOffset(R15, count), Reg RAX)] @
-        (compile_tuple tail (count - 1)) in
-        [IMovq(RegOffset(R15, 0), Const (Int64.of_int tuple_size))] @ compile_tuple elist (-1) 
-        @ [IMov(Reg RAX, Reg R15)] (* coloca direccion de tupla en RAX*)
-        @ [IAdd (Reg RAX, Const tuple_tag)] (* taggea valor *)
-        @ [IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] (* offsetea puntero de la pila*)
+    | None -> failwith(sprintf "unbound variable %s in regenv" s) )
   | EPrim1 (op, e, tag) -> 
     (compile_prim1 compile_expr op e tag env fenv nenv)
   | EPrim2 (op, e1, e2, tag) -> 
@@ -146,6 +135,19 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
             | None -> (caller_instrs f (compile_elist p)) ) (* deffun *)
           else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
         | None -> failwith(sprintf "undefined funtion: %s" f) )
+  | ETuple(elist, _) ->
+    let tuple_size = List.length elist in
+    (* compile_tuple : ejecuta instruciones para expr list y mueve los elementos a el heap *)
+    let rec compile_tuple (exprs : tag eexpr list) (count : int) : instruction list  =
+      match exprs with
+      | [] -> []
+      | e :: tail -> (compile_expr e env fenv nenv) @ 
+        [IMov(RegOffset(R15, count), Reg RAX)] @
+        (compile_tuple tail (count - 1)) in
+        [IMovq(RegOffset(R15, 0), Const (Int64.of_int tuple_size))] @ compile_tuple elist (-1) 
+        @ [IMov(Reg RAX, Reg R15)] (* coloca direccion de tupla en RAX*)
+        @ [IAdd (Reg RAX, Const tuple_tag)] (* taggea valor *)
+        @ [IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] (* offsetea puntero de la pila*)
   | ESet (_, _, _, _) -> failwith ("TODO")
 
 
@@ -232,9 +234,10 @@ let compile_prog (p : prog) : string =
   let tagged_flist, tagged_expr = (tag_program p) in
   let finstrs, fenv, nenv = (compile_functions_alt tagged_flist) in (* Usar compile_functions o compile_functions_alt *)
   
+  let heap_prelude = [IMov(Reg R15, Reg RDI); IAdd(Reg R15, Const 23L); IMov(Reg R11, Const 0xfffffffffffffff8L); IAnd (Reg R15, Reg R11)] in
+  
   (* compile main expresion *)
   let instrs = (compile_expr tagged_expr empty_regenv fenv nenv) in
-  let heap_prelude = [IMov(Reg R15, Reg RDI); IAdd(Reg R15, Const 23L); IMov(Reg R11, Const 0xfffffffffffffff8L); IAnd (Reg R15, Reg R11)] in
   let einstrs = (callee_instrs "our_code_starts_here" (heap_prelude @ instrs) (num_expr tagged_expr)) in
 
   (* variables internas *)

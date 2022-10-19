@@ -184,11 +184,11 @@ let rec string_of_expr(e : expr) : string =
     | Eq -> "=="
     | Neq -> "!="
     | Get -> "get") (string_of_expr e1) (string_of_expr e2)
-    | Tuple (exprs) -> sprintf "(tup %s)" (string_of_exprs exprs) 
-    | Set (e, k, v) -> sprintf "(set %s %s %s)" (string_of_expr e) (string_of_expr k) (string_of_expr v) 
   | Let (x, e1, e2) -> sprintf "(let (%s %s) %s)" x (string_of_expr e1) (string_of_expr e2) 
   | If (e1, e2, e3) -> sprintf "(if %s %s %s)" (string_of_expr e1) (string_of_expr e2) (string_of_expr e3)
   | App (f, e1) -> sprintf "(app %s (%s))" f (string_of_elist string_of_expr e1)
+  | Tuple (exprs) -> sprintf "(tup %s)" (string_of_exprs exprs) 
+  | Set (e, k, v) -> sprintf "(set %s %s %s)" (string_of_expr e) (string_of_expr k) (string_of_expr v) 
   and string_of_exprs (e: expr list) : string = 
       match e with
       | [] -> ""
@@ -204,11 +204,11 @@ match t with
 | CInt -> "int"
 | CBool -> "bool"
 | CTuple types -> 
-        let rec string_of_types =
-            fun ls -> (match ls with
-            | [] -> ""
-            | e::l -> e ^ "," ^ string_of_types l) in
-        "("^string_of_types (List.map string_of_ctype types)^")"
+  let rec string_of_types =
+    fun ls -> (match ls with
+    | [] -> ""
+    | e::l -> e ^ "," ^ string_of_types l) in
+  "("^string_of_types (List.map string_of_ctype types)^")"
 
 (* Pretty printing function definitions - used by testing framework *)
 let string_of_fundef(d : fundef) : string =
