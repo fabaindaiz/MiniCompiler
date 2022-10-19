@@ -42,7 +42,8 @@ void get_value(char* buffer, VAL val) {
 const int ERR_NOT_NUMBER = 1;
 const int ERR_NOT_BOOLEAN = 2;
 const int ERR_NOT_TUPLE = 3;
-const int ERR_BAD_INDEX = 4;
+const int ERR_BAD_INDEX_LOW = 5;
+const int ERR_BAD_INDEX_HIGH = 6;
 // other error codes here
 
 void error(int errCode, VAL val) {
@@ -55,10 +56,24 @@ void error(int errCode, VAL val) {
     fprintf(stderr, "Expected boolean, but got %s\n", buffer);
   } else if (errCode == ERR_NOT_TUPLE) {
     fprintf(stderr, "Expected tuple, but got %s\n", buffer);
-  } else if (errCode == ERR_BAD_INDEX) {
-    fprintf(stderr, "Expected tuple, but got %s\n", buffer);
   } else {
     printf("Unknown error: %d Value: %s", errCode, buffer); // print unknown val in hex
+  }
+  exit(errCode);
+}
+
+void error2(int errCode, VAL val1, VAL val2) {
+  char buffer1[50];
+  char buffer2[50];
+  get_value(buffer1, val1);
+  get_value(buffer2, val2);
+
+  if (errCode == ERR_BAD_INDEX_LOW) {
+    fprintf(stderr, "Index out of bounds: Tried to access index %s of %s", buffer1, buffer2);
+  } else if (errCode == ERR_BAD_INDEX_HIGH) {
+    fprintf(stderr, "Index out of bounds: Tried to access index %s of %s", buffer1, buffer2);
+  } else {
+    printf("Unknown error: %d Value: %s %s", errCode, buffer1, buffer2); // print unknown val in hex
   }
   exit(errCode);
 }

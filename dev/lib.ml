@@ -42,28 +42,47 @@ let gensym =
 let err_not_number = 1L
 let err_not_boolean = 2L
 let err_not_tuple = 3L
+let err_bad_index_low = 5L
+let err_bad_index_high = 6L
 
 (* apply register test *)
-let error_asm (error : int64) (ret : reg) (reg : reg) (error_tag : int64) (num : int) (tag : int) : instruction list = 
-  let test_label = sprintf "test%d_%d" num tag in
-    [ ITest(Reg reg, Const error_tag) ; IJnz(test_label) ] @ (* Testea que el registro cumpla la condición *)
-    [ IMov(Reg RSI, Reg ret) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
-    [ ICall("error") ; ILabel(test_label) ] (* Si la cumple, salta al label *)
+let error_asm (error : int64) (reg : reg) (label : string) : instruction list = 
+  [ IMov(Reg RSI, Reg reg) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
+  [ ICall("error") ; ILabel(label) ] (* Si la cumple, salta al label *)
 
 (* !0x...0 & 0x1 = 0x1 *)
 let error_not_number (reg : reg) (num : int) (tag : int) : instruction list =
-  let error_tag = 1L in
-  [ IMov(Reg R11, Reg reg) ; IXor(Reg R11, Const error_tag) ] @ (error_asm err_not_number RAX R11 error_tag num tag)
+  let label = sprintf "test%d_%d" num tag in
+    [ IMov(Reg R11, Reg reg) ; IXor(Reg R11, Const 1L) ] @
+    [ ITest(Reg R11, Const 1L) ; IJnz(label) ] @
+    (error_asm err_not_number RAX label)
 
 (*  0x...1 & 0x1 = 0x1 *)
 let error_not_boolean (reg : reg) (num : int) (tag : int) : instruction list =
-  let error_tag = 1L in
-  (error_asm err_not_boolean reg reg error_tag num tag)
+  let label = sprintf "test_%d_%d" tag num in
+    [ ITest(Reg reg, Const 1L) ; IJnz(label) ] @
+    (error_asm err_not_boolean reg label)
 
 (* 0x...1 & 0x11 = 0x11 *)
 let error_not_tuple (reg : reg) (num : int) (tag : int) : instruction list =
-  let error_tag = 3L in
-  (error_asm err_not_tuple reg reg error_tag num tag) (* TODO *)
+  let label = sprintf "test_%d_%d" tag num in
+    [ ITest(Reg reg, Const 1L) ; IJnz(label) ] @
+    (error_asm err_not_tuple reg label) (* TODO *)
+
+
+let error2_asm (error : int64) (reg1 : reg) (reg2 : reg) (label : string) : instruction list = 
+  [ IMov(Reg RDX, Reg reg2) ; IMov(Reg RSI, Reg reg1) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
+  [ ICall("error2") ; ILabel(label) ] (* Si la cumple, salta al label *)
+
+let error_bad_index_low (reg1 : reg) (reg2 : reg) (num : int) (tag : int) : instruction list =
+  let label = sprintf "test_%d_%d" tag num in
+    [ ICmp (Reg reg1, Const 0L) ; IJge(label) ; ISal (Reg reg1, Const 1L) ] @
+    (error2_asm err_bad_index_low reg1 reg2 label)
+
+let error_bad_index_high (reg1 : reg) (reg2 : reg) (lim : reg) (num : int) (tag : int) : instruction list =
+  let label = sprintf "test_%d_%d" tag num in
+    [ ICmp (Reg reg1, Reg lim) ; IJl(label) ; ISal (Reg reg1, Const 1L) ] @
+    (error2_asm err_bad_index_high reg1 reg2 label)
 
 
 let rsp_mask = 0xfffffff0
