@@ -14,7 +14,7 @@ const VAL BOOL_TRUE  = 0x8000000000000001; // These must be the same values
 const VAL BOOL_FALSE = 0x0000000000000001; // as chosen in compile.ml
 
 void get_value(char* buffer, VAL val) {
-  if ((val & TUPLE_TAG) == TUPLE_TAG) { // val is even ==> number
+  if ((val & TUPLE_TAG) == TUPLE_TAG) { // val ends in 3 ==> tuple
     VAL* point = (VAL*)(val - TUPLE_TAG);
     int64_t end = *point;
     sprintf(buffer, "(tup");
@@ -41,6 +41,8 @@ void get_value(char* buffer, VAL val) {
 
 const int ERR_NOT_NUMBER = 1;
 const int ERR_NOT_BOOLEAN = 2;
+const int ERR_NOT_TUPLE = 3;
+const int ERR_BAD_INDEX = 4;
 // other error codes here
 
 void error(int errCode, VAL val) {
@@ -51,6 +53,10 @@ void error(int errCode, VAL val) {
     fprintf(stderr, "Expected number, but got %s\n", buffer);
   } else if (errCode == ERR_NOT_BOOLEAN) {
     fprintf(stderr, "Expected boolean, but got %s\n", buffer);
+  } else if (errCode == ERR_NOT_TUPLE) {
+    fprintf(stderr, "Expected tuple, but got %s\n", buffer);
+  } else if (errCode == ERR_BAD_INDEX) {
+    fprintf(stderr, "Expected tuple, but got %s\n", buffer);
   } else {
     printf("Unknown error: %d Value: %s", errCode, buffer); // print unknown val in hex
   }

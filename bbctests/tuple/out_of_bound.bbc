@@ -1,0 +1,8 @@
+NAME: out of bounds
+DESCRIPTION: evaluate a tuple
+SRC:
+(
+  (get (tup 2) 6)
+)
+EXPECTED:
+|ORACLE

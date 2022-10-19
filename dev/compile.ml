@@ -83,8 +83,10 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
 
     (compile_expr e2 env' fenv nenv) @ (error_not_number RAX 2 tag) @
     [ ISar (Reg RAX, Const 1L) ] @  (* TODO Manejar error *)
-    [ ICmp (Reg RAX, Const 0L) ; IMov(Reg RSI, Reg RAX) ; IMov(Reg RDI, Const 10L) ; IJl ("error") ] @ (* make sure the index is non-negative *)
-    [ ICmp (Reg RAX, Reg R11) ; IMov(Reg RSI, Reg RAX) ; IMov(Reg RDI, Const 11L) ; IJge ("error") ] @ (* make sure the index is within the size of the tuple *)
+    [ ICmp (Reg RAX, Const 0L)] @ 
+    (* [IMov(Reg RSI, Reg RAX) ; IMov(Reg RDI, Const 10L) ; IJl ("error") ] @ make sure the index is non-negative *)
+    [ ICmp (Reg RAX, Reg R11)] @ 
+    (* [ IMov(Reg RSI, Reg RAX) ; IMov(Reg RDI, Const 11L) ; IJge ("error") ] @ make sure the index is within the size of the tuple *)
 
     [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
     [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg RAX, HeapOffset(R11, RAX))] in (* treat R11 as a pointer, and get its nth word *) 
@@ -262,7 +264,7 @@ let compile_prog (p : prog) : string =
 
   (* variables internas *)
   let defsys_list, _ = List.split nenv in
-  let extern_list = [ "error" ] @ defsys_list in
+  let extern_list = [ "error" ; "error2" ] @ defsys_list in
   let defsys_string = (List.fold_left (fun res i -> res ^ sprintf "  extern %s\n" i) "" extern_list) in
 
   (* compile program *)

@@ -83,6 +83,11 @@ let test_parse_error () =
     (CTError (Fmt.str "Not a valid expr: %a" CCSexp.pp sexp))
     (fun () -> ignore @@ parse_exp sexp)
 
+let test_parse_let_tuple () =
+  check exp "same expr"
+  (parse_exp (`List [`Atom "let" ; `List [`List [ `Atom "tup" ; `Atom "x"; `Atom "y"];`List [`Atom "tup"; `Atom "true" ; `Atom "1"] ]; `Atom "7"]))
+  (Let ("x", Prim2(Get, Tuple([Bool true; Num 1L]), Num 0L), Let ("y", Prim2(Get, Tuple([Bool true; Num 1L]), Num 1L), Num 7L)))
+
 (* Tests for our [interp] function *)
 let test_interp_num () =
   check value "same int" (interp (Num 42L) empty_env empty_fenv) (NumV 42L)
@@ -437,7 +442,8 @@ let ocaml_tests = [
     test_case "An if clause" `Quick test_parse_fork ;
     test_case "A definition" `Quick test_parse_let ;
     test_case "A compound expression" `Quick test_parse_compound ;
-    test_case "An invalid s-expression" `Quick test_parse_error
+    test_case "An invalid s-expression" `Quick test_parse_error ;
+    test_case "tuple pattern matching" `Quick test_parse_let_tuple
   ] ;
   "interp", [
     test_case "A number" `Quick test_interp_num ;

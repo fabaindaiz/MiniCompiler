@@ -5,6 +5,15 @@ open CCSexp
 
 exception CTError of string
 
+let parse_arg_name (sexp : sexp) : string =
+  match sexp with
+  | `Atom name -> name
+  | _ -> raise (CTError (sprintf "Not a valid argument name: %s" (to_string sexp)))
+
+let rec create_let_tup (slist : string list) (t: expr) (body : expr) (count : int64) : expr =
+  match slist with
+  | [] -> body
+  | id :: tail -> Let(id, Prim2(Get, t, Num count), create_let_tup tail t body (Int64.add count 1L))
 
 (* parse a CSSexp to an e expresion *)
 let rec parse_exp (sexp : sexp) : expr =
@@ -26,6 +35,9 @@ let rec parse_exp (sexp : sexp) : expr =
     | `Atom "let" -> 
       (match e1 with
       | `List [`Atom id; e] -> Let (id, parse_exp e, parse_exp e2)
+      | `List [`List (`Atom "tup" :: ids); t] -> 
+        let arg_names = List.map parse_arg_name ids in
+        create_let_tup arg_names (parse_exp t) (parse_exp e2) 0L
       | _ -> raise (CTError (sprintf "Not a valid let assignment: %s" (to_string e1))) )
     | `Atom "+" -> Prim2 (Add, parse_exp e1, parse_exp e2)
     | `Atom "-" -> Prim2 (Sub, parse_exp e1, parse_exp e2)
@@ -69,10 +81,6 @@ let rec parse_prog (sexp : sexp) : prog =
   )
   | _ -> [], parse_exp sexp
 
-and parse_arg_name (sexp : sexp) : string =
-  match sexp with
-  | `Atom name -> name
-  | _ -> raise (CTError (sprintf "Not a valid argument name: %s" (to_string sexp)))
 
 and parse_c_type (sexp : sexp) : ctype =
   match sexp with
