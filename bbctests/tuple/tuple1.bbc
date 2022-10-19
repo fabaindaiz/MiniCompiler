@@ -3,11 +3,11 @@ DESCRIPTION: evaluate a tuple
 SRC:
 (
   (defsys print any -> any)
-  (let 
-    (t (print (tup 1 2 3))) 
+  (let
+    (t (print (tup 1 2 3)))
     (get t 1)
   )
 )
 EXPECTED:
->  (tup 1 2 3)
+> (tup 1 2 3)
 2

@@ -58,6 +58,11 @@ void error(int errCode, VAL val) {
 }
 
 
+VAL rawprint(VAL val) {
+  printf("> 0x%lx\n", val);
+  return val;
+}
+
 VAL print(VAL val) {
   char buffer[50];
   get_value(buffer, val);

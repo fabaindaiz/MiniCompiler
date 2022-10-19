@@ -77,17 +77,17 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
 
   let tuple_eval : instruction list =
     (compile_expr e1 env' fenv nenv) @ (error_not_tuple RAX 1 tag) @
-    [ ISub (Reg RAX, Const 1L) ] @ (* untag pointer *)
+    [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
     [ IMov (RegOffset (RBP, reg_offset), Reg RAX)] @
-    [ IMov (Reg R11, RegOffset(RAX, 0)) ] @ (* move size to R11 *)
+    [ IMovq (Reg R11, RegOffset(RAX, 0)) ] @ (* move size to R11 *)
 
     (compile_expr e2 env' fenv nenv) @ (error_not_number RAX 2 tag) @
-    [ ISar (Reg RAX, Const 1L) ] @
+    [ ISar (Reg RAX, Const 1L) ] @  (* TODO Manejar error *)
     [ ICmp (Reg RAX, Const 0L) ; IMov(Reg RSI, Reg RAX) ; IMov(Reg RDI, Const 10L) ; IJl ("error") ] @ (* make sure the index is non-negative *)
     [ ICmp (Reg RAX, Reg R11) ; IMov(Reg RSI, Reg RAX) ; IMov(Reg RDI, Const 11L) ; IJge ("error") ] @ (* make sure the index is within the size of the tuple *)
 
     [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
-    [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg RAX, HeapOffset(R11, RAX))] in (* treat RAX as a pointer, and get its nth word *)
+    [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg RAX, HeapOffset(R11, RAX))] in (* treat R11 as a pointer, and get its nth word *) 
   
   let reg_offset = get_offset env in
     (match op with
@@ -103,7 +103,7 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     | Lte -> normal_eval (cond_eval [ IJle jump_label ]) error_not_number
     | Gte -> normal_eval (cond_eval [ IJge jump_label ]) error_not_number
     | Eq -> normal_eval (cond_eval [ IJe jump_label ]) error_not_number
-    | Neq -> normal_eval (cond_eval [ IJne jump_label ]) error_not_number 
+    | Neq -> normal_eval (cond_eval [ IJne jump_label ]) error_not_number
     | Get -> tuple_eval )
 
 
