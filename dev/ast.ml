@@ -124,7 +124,7 @@ let rec tag_expr_help (e : expr) (cur : tag) : (tag eexpr * tag) =
     let (tag_t, next_tag1) = tag_expr_help tup (cur + 1) in
     let (tag_p, next_tag2) = tag_expr_help pos next_tag1 in
     let (tag_v, next_tag3) = tag_expr_help v next_tag2 in
-    (EIf (tag_t, tag_p, tag_v, cur), next_tag3)
+    (ESet (tag_t, tag_p, tag_v, cur), next_tag3)
 
 let tag_expr (e : expr) : tag eexpr =
   let (tagged, _) = tag_expr_help e 1 in tagged

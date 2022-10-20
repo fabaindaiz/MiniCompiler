@@ -1,0 +1,14 @@
+NAME: set tuple 2
+DESCRIPTION: modify a tuple
+SRC:
+(
+  (defsys print any -> any)
+  (let
+    (t (print (tup 3 4 true)))
+    (get (print (set t 2 (+ 5 1))) 2)
+  )
+)
+EXPECTED:
+> (tup 3 4 true)
+> (tup 3 4 6)
+6

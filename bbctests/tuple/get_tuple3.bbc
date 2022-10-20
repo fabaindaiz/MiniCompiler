@@ -1,0 +1,17 @@
+NAME: get tuple 2
+DESCRIPTION: evaluate a tuple
+SRC:
+(
+  (defsys print any -> any)
+  (let
+    (t (print (tup 1 (tup 5 10 (tup 15)) 3)))
+    (let
+      (u (print (get t 1)))
+      (get u 2)
+    )
+  )
+)
+EXPECTED:
+> (tup 1 (tup 5 10 (tup 15)) 3)
+> (tup 5 10 (tup 15))
+(tup 15)

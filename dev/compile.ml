@@ -48,7 +48,7 @@ let compile_prim1 (compile_expr) (op : prim1) (e : tag eexpr) (tag : tag) (env :
 
 (* compila primitivas binarias *)
 let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) (tag : tag) (env : reg_env) (fenv : funenv) (nenv : nameenv) : instruction list =
-  let (env', reg_offset) = extend_regenv (sprintf "temp_%d" tag) env in
+  let (env', reg_offset) = extend_regenv (sprintf "temp_%d_1" tag) env in
   let jump_label = sprintf "label_%d" tag in (* generates unique label *)
 
   (* prelude to no-lazy binary primitives *)
@@ -76,21 +76,21 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     [ IMov (Reg RAX, Const val_false) ; ILabel (jump_label) ] in (* if true, overrides RAX *)
 
   let tuple_eval : instruction list =
-    let (env', reg_tuple) = extend_regenv (sprintf "tuple_%d" tag) env' in
-    (compile_expr e1 env' fenv nenv) @ (error_not_tuple RAX 3 tag) @
-    [ IMov (RegOffset (RBP, reg_tuple), Reg RAX)] @ (* guarda la tupla *)
-    [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
-    [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
+    let (env', reg_offset2) = extend_regenv (sprintf "temp_%d_2" tag) env' in
+      (compile_expr e1 env' fenv nenv) @ (error_not_tuple RAX 3 tag) @
+      [ IMov (RegOffset (RBP, reg_offset2), Reg RAX) ] @ (* guarda la tupla *)
+      [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
+      [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
 
-    (compile_expr e2 env' fenv nenv) @ (error_not_number RAX 4 tag) @
-    [ ISar (Reg RAX, Const 1L) ] @
-    [ IMov (Reg R12, RegOffset (RBP, reg_tuple)) ] @ 
-    [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg R11, RegOffset(R11, 0)) ] @
-    (error_bad_index_low RAX R12 1 tag) @ (* make sure the index is non-negative *)
-    (error_bad_index_high RAX R12 R11 2 tag) @ (* make sure the index is within the size of the tuple *)
+      (compile_expr e2 env' fenv nenv) @ (error_not_number RAX 4 tag) @
+      [ ISar (Reg RAX, Const 1L) ] @
+      [ IMov (Reg R10, RegOffset (RBP, reg_offset2)) ] @ 
+      [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg R11, RegOffset(R11, 0)) ] @
+      (error_bad_index_low RAX R10 1 tag) @ (* make sure the index is non-negative *)
+      (error_bad_index_high RAX R10 R11 2 tag) @ (* make sure the index is within the size of the tuple *)
 
-    [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
-    [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg RAX, HeapOffset(R11, RAX))] in (* treat R11 as a pointer, and get its nth word *) 
+      [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
+      [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg RAX, HeapOffset(R11, RAX)) ] in (* treat R11 as a pointer, and get its nth word *) 
   
   let reg_offset = get_offset env in
     (match op with
@@ -164,14 +164,35 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
         [IMov (Reg R11, init_R15)] @
         [IMov (RegOffset(R11, count), Reg RAX)] @ (* Lo pone en el heap *)
         (compile_tuple tail (count - 1)) (* Hace lo mismo con el resto *) in
-    [IMov (init_R15, Reg R15)] (* moves heap pointer to stack *)
-    @ [IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] (* offsetea puntero de heap*)
-    @ [IMov (Reg R11, init_R15)]
-    @ [IMovq (RegOffset(R11, 0), Const (Int64.of_int tuple_size))] (* Ubica el numero de elementos *)
-    @ compile_tuple elist (-1) (* Compila la tupla *)
-    @ [IMov (Reg RAX, init_R15)] (* coloca direccion de tupla en RAX*)
-    @ [IAdd (Reg RAX, Const tuple_tag)] (* taggea valor *)
-  | ESet (_, _, _, _) -> failwith ("TODO")
+      [ IMov (init_R15, Reg R15) ] @ (* moves heap pointer to stack *)
+      [ IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] @ (* offsetea puntero de heap*)
+      [ IMov (Reg R11, init_R15) ] @
+      [ IMovq (RegOffset(R11, 0), Const (Int64.of_int tuple_size))] @ (* Ubica el numero de elementos *)
+      (compile_tuple elist (-1)) @ (* Compila la tupla *)
+      [ IMov (Reg RAX, init_R15) ] @ (* coloca direccion de tupla en RAX*)
+      [ IAdd (Reg RAX, Const tuple_tag) ] (* taggea valor *)
+  | ESet (t, n, v, tag) -> 
+    let (env', reg_offset) = extend_regenv (sprintf "temp_%d_1" tag) env in
+    let (env', reg_offset2) = extend_regenv (sprintf "temp_%d_2" tag) env' in
+    let (env', reg_offset3) = extend_regenv (sprintf "temp_%d_3" tag) env' in
+      (compile_expr v env' fenv nenv) @ [ IMov (RegOffset (RBP, reg_offset3), Reg RAX) ] @
+
+      (compile_expr t env' fenv nenv) @ (error_not_tuple RAX 3 tag) @
+      [ IMov (RegOffset (RBP, reg_offset2), Reg RAX) ] @ (* guarda la tupla *)
+      [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
+      [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
+
+      (compile_expr n env' fenv nenv) @ (error_not_number RAX 4 tag) @
+      [ ISar (Reg RAX, Const 1L) ] @
+      [ IMov (Reg R10, RegOffset (RBP, reg_offset2)) ] @ 
+      [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg R11, RegOffset(R11, 0)) ] @
+      (error_bad_index_low RAX R10 1 tag) @ (* make sure the index is non-negative *)
+      (error_bad_index_high RAX R10 R11 2 tag) @ (* make sure the index is within the size of the tuple *)
+
+      [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
+      [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ] @ (* treat R11 as a pointer, and get its nth word *)
+      [ IMov (Reg R10, RegOffset (RBP, reg_offset3)) ; IMov (HeapOffset (R11, RAX), Reg R10) ] @
+      [ IMov (Reg RAX, RegOffset (RBP, reg_offset2)) ]
 
 
 (* Caso 1 : Compilación normal *)

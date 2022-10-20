@@ -66,7 +66,7 @@ let error_not_boolean (reg : reg) (num : int) (tag : int) : instruction list =
 (* 0x...1 & 0x11 = 0x11 *)
 let error_not_tuple (reg : reg) (num : int) (tag : int) : instruction list =
   let label = sprintf "test_%d_%d" tag num in
-    [ ITest(Reg reg, Const 1L) ; IJnz(label) ] @
+    [ ITest(Reg reg, Const 3L) ; IJnz(label) ] @
     (error_asm err_not_tuple reg label) (* TODO *)
 
 

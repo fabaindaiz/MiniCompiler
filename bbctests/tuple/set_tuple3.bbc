@@ -1,0 +1,12 @@
+NAME: set tuple 3
+DESCRIPTION: modify a tuple
+SRC:
+(
+  (defsys print any -> any)
+  (let
+    (t (tup 10 11))
+    (set (set t 0 20) 1 21)
+  )
+)
+EXPECTED:
+(tup 20 21)

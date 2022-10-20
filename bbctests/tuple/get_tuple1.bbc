@@ -1,0 +1,6 @@
+NAME: get tuple 1
+DESCRIPTION: evaluate a tuple
+SRC:
+(get (tup 1 2 3) 2)
+EXPECTED:
+3

@@ -1,13 +1,13 @@
-NAME: tuple 1
-DESCRIPTION: evaluate a tuple
+NAME: set tuple 1
+DESCRIPTION: modify a tuple
 SRC:
 (
   (defsys print any -> any)
   (let
     (t (print (tup 1 2 3)))
-    (get t 1)
+    (get (set t 1 10) 1)
   )
 )
 EXPECTED:
 > (tup 1 2 3)
-2
+10
