@@ -15,8 +15,6 @@ type nameenv = (string * string) list
 type envs = (regenv * funenv * nameenv)
 
 
-
-
 let empty_regenv : regenv = []
 
 (* Obtiene el offset de la variable actual*)
@@ -90,7 +88,9 @@ let error_not_boolean (reg : reg) (num : int) (tag : int) : instruction list =
 (* 0x...1 & 0x11 = 0x11 *)
 let error_not_tuple (reg : reg) (num : int) (tag : int) : instruction list =
   let label = sprintf "test_%d_%d" tag num in
-    [ ITest(Reg reg, Const 3L) ; IJnz(label) ] @
+  let label_err = sprintf "error_%d_%d" tag num in
+    [ ITest(Reg reg, Const 1L) ; IJz(label_err) ] @
+    [ ITest(Reg reg, Const 2L) ; IJnz(label) ; ILabel(label_err) ] @
     (error_asm err_not_tuple reg label) (* TODO *)
 
 

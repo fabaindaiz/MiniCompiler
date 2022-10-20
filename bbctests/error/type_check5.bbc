@@ -1,7 +1,7 @@
-NAME: type check error 
+NAME: type check error 5
 DESCRIPTION: evaluates a program with type checking error
 STATUS: RT error
 SRC:
-(add1 true)
+(get 10 1)
 EXPECTED:
-Type error: Expected number, but got true
+Type error: Expected tuple, but got 10

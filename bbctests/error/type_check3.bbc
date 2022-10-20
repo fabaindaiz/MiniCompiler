@@ -1,7 +1,7 @@
-NAME: type check error 2
+NAME: type check error 3
 DESCRIPTION: evaluates a program with type checking error
 STATUS: RT error
 SRC:
 (not 16)
 EXPECTED:
-Expected boolean, but got 16
+Type error: Expected boolean, but got 16
