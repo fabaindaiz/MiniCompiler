@@ -4,33 +4,57 @@ open Asm
 open Ast
 
 
+(* data structure to attach registers to variables *)
+type regenv = (string * arg) list
 (* data structure to save defined functions *)
 type funenv = (string * int) list
 (* data structure to save functions names *)
 type nameenv = (string * string) list
 
-(* data structure to attach registers to variables *)
-type reg_env = (string * arg) list
 
-let empty_regenv : reg_env = []
+type envs = (regenv * funenv * nameenv)
+
+
+
+
+let empty_regenv : regenv = []
 
 (* Obtiene el offset de la variable actual*)
-let rec get_offset (env : reg_env) : int =
+let rec get_offset (env : regenv) : int =
   match env with
   | (_, RegOffset(_, _))::tail -> 1 + get_offset tail (* cuenta solo registros que apuntan a la pila *)
   | _::tail -> get_offset tail
   | _ -> 1
 
 (* extiende el ambiente con una variable del usuario *)
-let extend_regenv (x : string) (env : reg_env) : (reg_env * int) =
+let extend_regenv (x : string) (env : regenv) : (regenv * int) =
   let reg_offset = (get_offset env) in
   ((x, RegOffset (RBP, reg_offset)) :: env, reg_offset)
 
-let extend_regenv_reg (x : string * arg) (env : reg_env) : (reg_env) =
+let extend_regenv_reg (x : string * arg) (env : regenv) : (regenv) =
   let id, register = x in
   ((id, register) :: env)
 
 
+(* calculate an aprox number of used argument *)
+let rec num_expr (expr : tag eexpr) : int =
+  match expr with
+  | ENum (_, _) -> 1
+  | EBool (_, _) -> 1
+  | ETuple (elist, _) -> num_expr_list elist
+  | EId (_, _) -> 1
+  | EPrim1 (_, e1, _) -> 1 + (num_expr e1)
+  | EPrim2 (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
+  | ELet (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
+  | EIf (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
+  | ESet (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
+  | EApp (_, elist, _) -> num_expr_list elist
+  and num_expr_list (elist: tag eexpr list) : int =
+    match elist with
+    | [] -> 0
+    | e1::tail -> (max (num_expr e1) (num_expr_list tail))
+
+    
 (* gensym for string labels *)
 let gensym =
   let a_counter = ref 0 in
@@ -169,8 +193,8 @@ let caller_match (num : int) : instruction list =
   | _ -> [ IPush(Reg RAX) ]
 
 (* get enviroment from args list to compile function *)  
-let env_from_args (args : string list) : reg_env =
-  let rec env_arg_help (l : string list) (count : int) : reg_env = 
+let env_from_args (args : string list) : regenv =
+  let rec env_arg_help (l : string list) (count : int) : regenv = 
     match l with
     | [] -> empty_regenv
     | id::tail ->

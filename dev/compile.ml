@@ -4,25 +4,6 @@ open Asm
 open Ast
 open Lib
 
-
-(* calculate an aprox number of used argument *)
-let rec num_expr (expr : tag eexpr) : int =
-  match expr with
-  | ENum (_, _) -> 1
-  | EBool (_, _) -> 1
-  | ETuple (elist, _) -> num_expr_list elist
-  | EId (_, _) -> 1
-  | EPrim1 (_, e1, _) -> 1 + (num_expr e1)
-  | EPrim2 (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
-  | ELet (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
-  | EIf (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
-  | ESet (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
-  | EApp (_, elist, _) -> num_expr_list elist
-  and num_expr_list (elist: tag eexpr list) : int =
-    match elist with
-    | [] -> 0
-    | e1::tail -> (max (num_expr e1) (num_expr_list tail))
-
   
 (* constants *)
 let min_int = Int64.div Int64.min_int 2L
@@ -36,7 +17,7 @@ let val_false = bool_tag (* 00..01*)
 
 
 (* compila primitivas unarias *)
-let compile_prim1 (compile_expr) (op : prim1) (e : tag eexpr) (tag : tag) (env : reg_env) (fenv : funenv) (nenv : nameenv) : instruction list =
+let compile_prim1 (compile_expr) (op : prim1) (e : tag eexpr) (tag : tag) (env : regenv) (fenv : funenv) (nenv : nameenv) : instruction list =
   let insts =
     (match op with
     | Add1 -> (error_not_number RAX 1 tag) @ [IAdd (Reg RAX, Const 2L)]
@@ -47,7 +28,7 @@ let compile_prim1 (compile_expr) (op : prim1) (e : tag eexpr) (tag : tag) (env :
 
 
 (* compila primitivas binarias *)
-let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) (tag : tag) (env : reg_env) (fenv : funenv) (nenv : nameenv) : instruction list =
+let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) (tag : tag) (env : regenv) (fenv : funenv) (nenv : nameenv) : instruction list =
   let (env', reg_offset) = extend_regenv (sprintf "temp_%d_1" tag) env in
   let jump_label = sprintf "label_%d" tag in (* generates unique label *)
 
@@ -76,21 +57,22 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     [ IMov (Reg RAX, Const val_false) ; ILabel (jump_label) ] in (* if true, overrides RAX *)
 
   let tuple_eval : instruction list =
-    let (env', reg_offset2) = extend_regenv (sprintf "temp_%d_2" tag) env' in
-      (compile_expr e1 env' fenv nenv) @ (error_not_tuple RAX 3 tag) @
-      [ IMov (RegOffset (RBP, reg_offset2), Reg RAX) ] @ (* guarda la tupla *)
-      [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
-      [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
+    let (env', reg_tuple) = extend_regenv (sprintf "temp_%d_2" tag) env' in
 
-      (compile_expr e2 env' fenv nenv) @ (error_not_number RAX 4 tag) @
-      [ ISar (Reg RAX, Const 1L) ] @
-      [ IMov (Reg R10, RegOffset (RBP, reg_offset2)) ] @ 
-      [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg R11, RegOffset(R11, 0)) ] @
-      (error_bad_index_low RAX R10 1 tag) @ (* make sure the index is non-negative *)
-      (error_bad_index_high RAX R10 R11 2 tag) @ (* make sure the index is within the size of the tuple *)
+    (compile_expr e1 env' fenv nenv) @ (error_not_tuple RAX 3 tag) @
+    [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @ (* guarda la tupla *)
+    [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
+    [ IMov (RegOffset (RBP, reg_tuple), Reg RAX) ] @
 
-      [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
-      [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg RAX, HeapOffset(R11, RAX)) ] in (* treat R11 as a pointer, and get its nth word *) 
+    (compile_expr e2 env' fenv nenv) @ (error_not_number RAX 4 tag) @
+    [ ISar (Reg RAX, Const 1L) ] @
+    [ IMov (Reg R10, RegOffset (RBP, reg_offset)) ] @ 
+    [ IMov (Reg R11, RegOffset (RBP, reg_tuple)) ; IMov (Reg R11, RegOffset(R11, 0)) ] @
+    (error_bad_index_low RAX R10 1 tag) @ (* make sure the index is non-negative *)
+    (error_bad_index_high RAX R10 R11 2 tag) @ (* make sure the index is within the size of the tuple *)
+
+    [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
+    [ IMov (Reg R11, RegOffset (RBP, reg_tuple)) ; IMov (Reg RAX, HeapOffset(R11, RAX)) ] in (* treat R11 as a pointer, and get its nth word *)
   
   let reg_offset = get_offset env in
     (match op with
@@ -110,7 +92,7 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     | Get -> tuple_eval )
 
 
-let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nameenv): instruction list =
+let rec compile_expr (e : tag eexpr) (env : regenv) (fenv : funenv) (nenv : nameenv): instruction list =
   match e with 
   | ENum (n, _) -> 
     if n > max_int || n < min_int then
@@ -173,26 +155,27 @@ let rec compile_expr (e : tag eexpr) (env : reg_env) (fenv : funenv) (nenv : nam
       [ IAdd (Reg RAX, Const tuple_tag) ] (* taggea valor *)
   | ESet (t, n, v, tag) -> 
     let (env', reg_offset) = extend_regenv (sprintf "temp_%d_1" tag) env in
-    let (env', reg_offset2) = extend_regenv (sprintf "temp_%d_2" tag) env' in
-    let (env', reg_offset3) = extend_regenv (sprintf "temp_%d_3" tag) env' in
-      (compile_expr v env' fenv nenv) @ [ IMov (RegOffset (RBP, reg_offset3), Reg RAX) ] @
+    let (env', reg_tuple) = extend_regenv (sprintf "temp_%d_2" tag) env' in
+    
+    let (env', reg_value) = extend_regenv (sprintf "temp_%d_3" tag) env' in
+    (compile_expr v env' fenv nenv) @ [ IMov (RegOffset (RBP, reg_value), Reg RAX) ] @
 
-      (compile_expr t env' fenv nenv) @ (error_not_tuple RAX 3 tag) @
-      [ IMov (RegOffset (RBP, reg_offset2), Reg RAX) ] @ (* guarda la tupla *)
-      [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
-      [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
+    (compile_expr t env' fenv nenv) @ (error_not_tuple RAX 3 tag) @
+    [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @ (* guarda la tupla *)
+    [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
+    [ IMov (RegOffset (RBP, reg_tuple), Reg RAX) ] @
 
-      (compile_expr n env' fenv nenv) @ (error_not_number RAX 4 tag) @
-      [ ISar (Reg RAX, Const 1L) ] @
-      [ IMov (Reg R10, RegOffset (RBP, reg_offset2)) ] @ 
-      [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ; IMov (Reg R11, RegOffset(R11, 0)) ] @
-      (error_bad_index_low RAX R10 1 tag) @ (* make sure the index is non-negative *)
-      (error_bad_index_high RAX R10 R11 2 tag) @ (* make sure the index is within the size of the tuple *)
+    (compile_expr n env' fenv nenv) @ (error_not_number RAX 4 tag) @
+    [ ISar (Reg RAX, Const 1L) ] @
+    [ IMov (Reg R10, RegOffset (RBP, reg_offset)) ] @ 
+    [ IMov (Reg R11, RegOffset (RBP, reg_tuple)) ; IMov (Reg R11, RegOffset(R11, 0)) ] @
+    (error_bad_index_low RAX R10 1 tag) @ (* make sure the index is non-negative *)
+    (error_bad_index_high RAX R10 R11 2 tag) @ (* make sure the index is within the size of the tuple *)
 
-      [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
-      [ IMov (Reg R11, RegOffset (RBP, reg_offset)) ] @ (* treat R11 as a pointer, and get its nth word *)
-      [ IMov (Reg R10, RegOffset (RBP, reg_offset3)) ; IMov (HeapOffset (R11, RAX), Reg R10) ] @
-      [ IMov (Reg RAX, RegOffset (RBP, reg_offset2)) ]
+    [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
+    [ IMov (Reg R11, RegOffset (RBP, reg_tuple)) ] @ (* treat R11 as a pointer, and get its nth word *)
+    [ IMov (Reg R10, RegOffset (RBP, reg_value)) ; IMov (HeapOffset (R11, RAX), Reg R10) ] @
+    [ IMov (Reg RAX, RegOffset (RBP, reg_offset)) ]
 
 
 (* Caso 1 : Compilación normal *)
@@ -278,7 +261,7 @@ let compile_prog (p : prog) : string =
   let tagged_flist, tagged_expr = (tag_program p) in
   let finstrs, fenv, nenv = (compile_functions_alt tagged_flist) in (* Usar compile_functions o compile_functions_alt *)
   
-  let heap_prelude = [IMov(Reg R15, Reg RDI); IAdd(Reg R15, Const 23L); IMov(Reg R11, Const 0xfffffffffffffff8L); IAnd (Reg R15, Reg R11)] in
+  let heap_prelude = [ IMov(Reg R15, Reg RDI) ; IAdd(Reg R15, Const 23L) ; IMov(Reg R11, Const 0xfffffffffffffff8L); IAnd (Reg R15, Reg R11) ] in
   
   (* compile main expresion *)
   let instrs = (compile_expr tagged_expr empty_regenv fenv nenv) in
