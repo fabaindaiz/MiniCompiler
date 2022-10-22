@@ -7,4 +7,4 @@ SRC:
   (print true)
 )
 EXPECTED:
-Expected number, but got true
+Type error: Expected integer but got true

@@ -15,6 +15,24 @@ let bool_mask = 0x8000000000000000L
 let val_true = Int64.add Int64.min_int bool_tag (* 10..01*)
 let val_false = bool_tag (* 00..01*)
 
+(* compila y verifica tuple y index y luego verifica que index este dentro del rango de tupla
+   termina con valor de indice en RAX y registro con puntero a tupla (untagged) en "utuple_reg".
+   Retorna instrucciones, direccion tupla (tagged) y registro que contiene direccion (untagged) *) 
+let check_index_in_bounds (compile_expr) (tuple : tag eexpr) (index : tag eexpr) (utuple_reg : reg) (tag : tag) (env : regenv) (fenv : funenv) (nenv : nameenv) : instruction list * arg =
+  let (env', reg_offset) = extend_regenv (sprintf "temp_%d_1" tag) env in
+
+  let tuple_arg = RegOffset (RBP, reg_offset) in
+  (compile_expr tuple env' fenv nenv) @ (error_not_tuple RAX 3 tag) @ (* compila tupla *)
+    [ IMov (tuple_arg, Reg RAX) ] @ (* guarda la tupla *)
+
+    (compile_expr index env' fenv nenv) @ (error_not_number RAX 4 tag) @ (* compila índice *)
+    [ IMov (Reg utuple_reg, tuple_arg); ISub (Reg R10, Const tuple_tag) ] @ (* save untagged pointer in passed reg*)
+    [ IMov (Reg R11, RegOffset(utuple_reg, 0))] @ (* guarda largo de tupla en R11*)
+
+    [ ISar (Reg RAX, Const 1L) ] @ (* interpreta valor real de index *)
+    (error_bad_index_low (Reg RAX) tuple_arg 1 tag) @ (* make sure the index is non-negative *)
+    (error_bad_index_high (Reg RAX) tuple_arg (Reg R11) 2 tag) (* make sure the index is within the size of the tuple *)
+  , tuple_arg
 
 (* compila primitivas unarias *)
 let compile_prim1 (compile_expr) (op : prim1) (e : tag eexpr) (tag : tag) (env : regenv) (fenv : funenv) (nenv : nameenv) : instruction list =
@@ -57,22 +75,12 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     [ IMov (Reg RAX, Const val_false) ; ILabel (jump_label) ] in (* if true, overrides RAX *)
 
   let tuple_eval : instruction list =
-    let (env', reg_tuple) = extend_regenv (sprintf "temp_%d_2" tag) env' in
-
-    (compile_expr e1 env' fenv nenv) @ (error_not_tuple RAX 3 tag) @
-    [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @ (* guarda la tupla *)
-    [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
-    [ IMov (RegOffset (RBP, reg_tuple), Reg RAX) ] @
-
-    (compile_expr e2 env' fenv nenv) @ (error_not_number RAX 4 tag) @
-    [ ISar (Reg RAX, Const 1L) ] @
-    [ IMov (Reg R10, RegOffset (RBP, reg_offset)) ] @ 
-    [ IMov (Reg R11, RegOffset (RBP, reg_tuple)) ; IMov (Reg R11, RegOffset(R11, 0)) ] @
-    (error_bad_index_low RAX R10 1 tag) @ (* make sure the index is non-negative *)
-    (error_bad_index_high RAX R10 R11 2 tag) @ (* make sure the index is within the size of the tuple *)
+    let instrs, _ = check_index_in_bounds compile_expr e1 e2 R10 tag env' fenv nenv in
+    
+    instrs @ (* make sure the index is within the size of the tuple *)
 
     [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
-    [ IMov (Reg R11, RegOffset (RBP, reg_tuple)) ; IMov (Reg RAX, HeapOffset(R11, RAX)) ] in (* treat R11 as a pointer, and get its nth word *)
+    [ IMov (Reg R11, Reg R10) ; IMov (Reg RAX, HeapOffset(R11, RAX)) ] in (* treat R11 as a pointer, and get its nth word *)
   
   let reg_offset = get_offset env in
     (match op with
@@ -154,28 +162,16 @@ let rec compile_expr (e : tag eexpr) (env : regenv) (fenv : funenv) (nenv : name
       [ IMov (Reg RAX, init_R15) ] @ (* coloca direccion de tupla en RAX*)
       [ IAdd (Reg RAX, Const tuple_tag) ] (* taggea valor *)
   | ESet (t, n, v, tag) -> 
-    let (env', reg_offset) = extend_regenv (sprintf "temp_%d_1" tag) env in
-    let (env', reg_tuple) = extend_regenv (sprintf "temp_%d_2" tag) env' in
-    
-    let (env', reg_value) = extend_regenv (sprintf "temp_%d_3" tag) env' in
+    let (env', reg_value) = extend_regenv (sprintf "temp_%d_3" tag) env in
     (compile_expr v env' fenv nenv) @ [ IMov (RegOffset (RBP, reg_value), Reg RAX) ] @
+    
+    let instrs, tuple_arg = check_index_in_bounds compile_expr t n R10 tag env' fenv nenv in
+    instrs @ (* make sure the index is within the size of the tuple *)
 
-    (compile_expr t env' fenv nenv) @ (error_not_tuple RAX 3 tag) @
-    [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @ (* guarda la tupla *)
-    [ ISub (Reg RAX, Const tuple_tag) ] @ (* untag pointer *)
-    [ IMov (RegOffset (RBP, reg_tuple), Reg RAX) ] @
-
-    (compile_expr n env' fenv nenv) @ (error_not_number RAX 4 tag) @
-    [ ISar (Reg RAX, Const 1L) ] @
-    [ IMov (Reg R10, RegOffset (RBP, reg_offset)) ] @ 
-    [ IMov (Reg R11, RegOffset (RBP, reg_tuple)) ; IMov (Reg R11, RegOffset(R11, 0)) ] @
-    (error_bad_index_low RAX R10 1 tag) @ (* make sure the index is non-negative *)
-    (error_bad_index_high RAX R10 R11 2 tag) @ (* make sure the index is within the size of the tuple *)
-
+    (* index in rax, pointer to tuple in R10 *)
     [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
-    [ IMov (Reg R11, RegOffset (RBP, reg_tuple)) ] @ (* treat R11 as a pointer, and get its nth word *)
-    [ IMov (Reg R10, RegOffset (RBP, reg_value)) ; IMov (HeapOffset (R11, RAX), Reg R10) ] @
-    [ IMov (Reg RAX, RegOffset (RBP, reg_offset)) ]
+    [ IMov (Reg R11, RegOffset (RBP, reg_value)) ; IMov (HeapOffset (R10, RAX), Reg R11) ] @ (* move v to nth word *)
+    [ IMov (Reg RAX, tuple_arg) ] (* returns tuple *)
 
 
 (* Caso 1 : Compilación normal *)

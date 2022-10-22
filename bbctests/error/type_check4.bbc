@@ -5,4 +5,4 @@ SRC:
 (let (x 5)
  (if (not x) (add1 0) (sub1 0)))
 EXPECTED:
-Type error: Expected boolean, but got 5
+Type error: Expected boolean but got 5

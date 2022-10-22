@@ -4,4 +4,4 @@ STATUS: RT error
 SRC:
 (add1 true)
 EXPECTED:
-Type error: Expected number, but got true
+Type error: Expected integer but got true

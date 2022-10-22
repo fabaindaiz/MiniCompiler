@@ -8,4 +8,4 @@ SRC:
   (print (+ 2 (max 5 (+ 4 6))))
 )
 EXPECTED:
-Expected boolean, but got 10
+Type error: Expected boolean but got 10

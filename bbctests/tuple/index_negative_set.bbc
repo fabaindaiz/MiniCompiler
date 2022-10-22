@@ -1,0 +1,8 @@
+NAME: negative index set
+DESCRIPTION: evaluate a tuple
+SRC:
+(
+  (set (tup 2) -3 true)
+)
+EXPECTED:
+|ORACLE
