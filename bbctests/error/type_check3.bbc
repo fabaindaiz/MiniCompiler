@@ -4,4 +4,4 @@ STATUS: RT error
 SRC:
 (not 16)
 EXPECTED:
-Type error: Expected boolean, but got 16
+Type error: Expected boolean but got 16

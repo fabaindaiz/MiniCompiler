@@ -94,18 +94,18 @@ let error_not_tuple (reg : reg) (num : int) (tag : int) : instruction list =
     (error_asm err_not_tuple reg label) (* TODO *)
 
 
-let error2_asm (error : int64) (reg1 : reg) (reg2 : reg) (label : string) : instruction list = 
-  [ IMov(Reg RDX, Reg reg2) ; IMov(Reg RSI, Reg reg1) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
+let error2_asm (error : int64) (reg1 : arg) (reg2 : arg) (label : string) : instruction list = 
+  [ IMov(Reg RDX, reg2) ; IMov(Reg RSI, reg1) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
   [ ICall("error2") ; ILabel(label) ] (* Si la cumple, salta al label *)
 
-let error_bad_index_low (reg1 : reg) (reg2 : reg) (num : int) (tag : int) : instruction list =
+let error_bad_index_low (reg1 : arg) (reg2 : arg) (num : int) (tag : int) : instruction list =
   let label = sprintf "test_%d_%d" tag num in
-    [ ICmp (Reg reg1, Const 0L) ; IJge(label) ; ISal (Reg reg1, Const 1L) ] @
+    [ ICmp (reg1, Const 0L) ; IJge(label) ; ISal (reg1, Const 1L) ] @
     (error2_asm err_bad_index_low reg1 reg2 label)
 
-let error_bad_index_high (reg1 : reg) (reg2 : reg) (lim : reg) (num : int) (tag : int) : instruction list =
+let error_bad_index_high (reg1 : arg) (reg2 : arg) (lim : arg) (num : int) (tag : int) : instruction list =
   let label = sprintf "test_%d_%d" tag num in
-    [ ICmp (Reg reg1, Reg lim) ; IJl(label) ; ISal (Reg reg1, Const 1L) ] @
+    [ ICmp (reg1, lim) ; IJl(label) ; ISal (reg1, Const 1L) ] @
     (error2_asm err_bad_index_high reg1 reg2 label)
 
 

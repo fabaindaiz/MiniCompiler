@@ -4,4 +4,4 @@ STATUS: RT error
 SRC:
 (get 10 1)
 EXPECTED:
-Type error: Expected tuple, but got 10
+Type error: Expected tuple but got 10

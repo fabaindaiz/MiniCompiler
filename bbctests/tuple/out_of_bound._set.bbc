@@ -1,0 +1,8 @@
+NAME: out of bounds set
+DESCRIPTION: evaluate a tuple
+SRC:
+(
+  (set (tup true false) 2 false)
+)
+EXPECTED:
+|ORACLE

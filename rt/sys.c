@@ -51,11 +51,11 @@ void error(int errCode, VAL val) {
   get_value(buffer, val);
 
   if (errCode == ERR_NOT_NUMBER) {
-    fprintf(stderr, "Type error: Expected number, but got %s\n", buffer);
+    fprintf(stderr, "Type error: Expected integer but got %s", buffer);
   } else if (errCode == ERR_NOT_BOOLEAN) {
-    fprintf(stderr, "Type error: Expected boolean, but got %s\n", buffer);
+    fprintf(stderr, "Type error: Expected boolean but got %s", buffer);
   } else if (errCode == ERR_NOT_TUPLE) {
-    fprintf(stderr, "Type error: Expected tuple, but got %s\n", buffer);
+    fprintf(stderr, "Type error: Expected tuple but got %s", buffer);
   } else {
     printf("Unknown error: %d Value: %s", errCode, buffer); // print unknown val in hex
   }
