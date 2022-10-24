@@ -22,7 +22,7 @@ let check_index_in_bounds (compile_expr) (tuple : tag eexpr) (index : tag eexpr)
   let (env', reg_offset) = extend_regenv (sprintf "temp_%d_1" tag) env in
 
   let tuple_arg = RegOffset (RBP, reg_offset) in
-  (compile_expr tuple env' fenv nenv) @ (error_not_tuple RAX 3 tag) @ (* compila tupla *)
+    (compile_expr tuple env' fenv nenv) @ (error_not_tuple RAX 3 tag) @ (* compila tupla *)
     [ IMov (tuple_arg, Reg RAX) ] @ (* guarda la tupla *)
 
     (compile_expr index env' fenv nenv) @ (error_not_number RAX 4 tag) @ (* compila índice *)
@@ -75,9 +75,8 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     [ IMov (Reg RAX, Const val_false) ; ILabel (jump_label) ] in (* if true, overrides RAX *)
 
   let tuple_eval : instruction list =
-    let instrs, _ = check_index_in_bounds compile_expr e1 e2 R10 tag env' fenv nenv in
-    
-    instrs @ (* make sure the index is within the size of the tuple *)
+    let instrs, _ = (check_index_in_bounds compile_expr e1 e2 R10 tag env' fenv nenv) in  
+      instrs @ (* make sure the index is within the size of the tuple *)
 
     [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
     [ IMov (Reg RAX, HeapOffset(R10, RAX)) ] in (* treat R11 as a pointer, and get its nth word *)
@@ -165,8 +164,8 @@ let rec compile_expr (e : tag eexpr) (env : regenv) (fenv : funenv) (nenv : name
     let (env', reg_value) = extend_regenv (sprintf "temp_%d_3" tag) env in
     (compile_expr v env' fenv nenv) @ [ IMov (RegOffset (RBP, reg_value), Reg RAX) ] @
     
-    let instrs, tuple_arg = check_index_in_bounds compile_expr t n R10 tag env' fenv nenv in
-    instrs @ (* make sure the index is within the size of the tuple *)
+    let instrs, tuple_arg = (check_index_in_bounds compile_expr t n R10 tag env' fenv nenv) in
+      instrs @ (* make sure the index is within the size of the tuple *)
 
     (* index in rax, pointer to tuple in R10 *)
     [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
