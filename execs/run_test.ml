@@ -72,11 +72,6 @@ let test_parse_let () =
   (parse_exp (`List [`Atom "let" ; `List [`Atom "x" ; `Atom "1"] ; `List [`Atom "let" ; `List [`Atom "y" ; `Atom "7"] ; `Atom "10"] ])) 
   (Let ("x", Num 1L, Let ("y", Num 7L, Num 10L)))
 
-let test_parse_let_tuple () =
-  check exp "same expr"
-  (parse_exp (`List [`Atom "let" ; `List [`List [ `Atom "tup" ; `Atom "x"; `Atom "y"];`List [`Atom "tup"; `Atom "true" ; `Atom "1"] ]; `Atom "7"]))
-  (Let ("x", Prim2(Get, Tuple([Bool true; Num 1L]), Num 0L), Let ("y", Prim2(Get, Tuple([Bool true; Num 1L]), Num 1L), Num 7L)))
-
 let test_parse_lambda_empty () =
   check exp "empty params lambda is parsed"
   (parse_exp (`List [`Atom "lambda" ; `List [] ; `Atom "1"])) 
@@ -87,7 +82,7 @@ let test_parse_lambda () =
   (parse_exp (`List [`Atom "lambda" ; `List [`Atom "x" ; `Atom "y"] ; `List [`Atom "+" ; `Atom "x" ; `Atom "y"]])) 
   (Lambda (["x" ; "y"], Prim2 (Add, Id "x", Id "y")))
 
-let test_parse_lambda_apply () =
+let test_parse_lambda_App () =
   check exp "lambda application is parsed"
   (parse_exp (`List [`Atom "@" ; `List [`Atom "lambda" ; `List [`Atom "x" ; `Atom "y"] ; `List [`Atom "+" ; `Atom "x" ; `Atom "y"]] ; `Atom "7" ; `Atom "13"])) 
   (LamApp ((Lambda (["x" ; "y"], Prim2 (Add, Id "x", Id "y"))), [Num 7L ; Num 13L]))
@@ -108,9 +103,9 @@ let test_parse_compound () =
   (Prim2 (Add, Prim2 (Add, Num 3L, Id "x"), Num 7L))
 
 let test_parse_error () =
-  let sexp = `List [`List [`Atom "foo"]; `Atom "bar"] in
+  let sexp = `List [`List []; `Atom "bar"] in
   check_raises "Should raise a parse error" 
-    (CTError (Fmt.str "Not a valid expr: %a" CCSexp.pp sexp))
+    (CTError (Fmt.str "Not a valid expr: (() bar)"))
     (fun () -> ignore @@ parse_exp sexp)
 
 (* Tests for our [interp] function *)
@@ -148,16 +143,6 @@ let test_interp_and () =
   let v = (interp (Prim2 (And, Bool true, Bool false))) empty_env empty_fenv in 
   check value "correct conjunction" v 
   (BoolV false)
-
-let lazy_and () =
-  check value "reduces to false without throwing an error or printing"
-  (interp (parse_exp (sexp_from_string "(and false (print -1))")) empty_env empty_fenv)
-  (BoolV false)
-
-let error_if_cond_not_bool () =
-  let v = (fun () -> ignore @@ interp (parse_exp (sexp_from_string "(if 23 true false)")) empty_env empty_fenv) in 
-  check_raises "if received a non-boolean as condition" 
-  (RTError "Type error: Expected boolean but got 23") v
 
 let test_interp_fork_1 () =
   let v = (interp (If (Prim2 (Lte, Num 0L, Num 1L), (Num 70L), (Bool false)))) empty_env empty_fenv in 
@@ -206,7 +191,7 @@ let test_interp_set () =
   let v = (interp (Let ("x",(Tuple [Num 12L;Bool true;Tuple []]) , (Let ("foo", (Set (Id "x", Num 1L, Bool false)), (Id "x")))))) empty_env empty_fenv in
   check value "correct set execution" v 
   (TupleV [(ref (NumV 12L));(ref (BoolV false)); (ref (TupleV []))])
-
+  
 let test_interp_lambda_empty () =
   check string "empty params lambda is parsed"
   (string_of_val (interp (Lambda ([], Num 1L)) empty_env empty_fenv))
@@ -217,7 +202,7 @@ let test_interp_lambda () =
   (string_of_val (interp (Lambda (["x" ; "y"], Prim2 (Add, Id "x", Id "y"))) empty_env empty_fenv))
   (string_of_val (ClosureV (2, (fun _ -> NumV 5L))))
   
-let test_interp_lambda_apply () =
+let test_interp_lambda_App () =
   check value "lambda application is parsed"
   (interp (LamApp ((Lambda (["x" ; "y"], Prim2 (Add, Id "x", Id "y"))), [Num 7L ; Num 13L])) empty_env empty_fenv)
   (NumV 20L) 
@@ -231,7 +216,7 @@ let test_interp_letrec () =
   check value "letrec is parsed"
   (interp (LetRec (["f", ["x" ; "y"], Prim2 (Add, Id "x", Id "y") ; "g", [], Num 21L], LamApp (Id "f", [LamApp (Id "g", []) ; LamApp (Id "g", [])]))) empty_env empty_fenv)
   (NumV 42L)
-
+  
 let test_interp_fo_fun_2 () =
   let v = (interp_prog (
     [DefFun ("f", ["x" ; "y" ; "z"], (Prim2 (Add, (Prim2 (Add, Id "x", Id "y")), Id "z")))],
@@ -273,6 +258,17 @@ let test_interp_compound () =
     (interp (Prim2 (Add, Prim2 (Add, Num 3L, (Prim1 (Sub1, Num 6L))), Num 12L)) empty_env empty_fenv)
     (NumV 20L)
 
+let lazy_and () =
+  check value "reduces to false without throwing an error or printing"
+  (interp_prog (parse_prog (sexp_from_string "( (defsys print any -> any)
+                                                (and false (print -1)))")) empty_env)
+  (BoolV false)
+
+let error_if_cond_not_bool () =
+  let v = (fun () -> ignore @@ interp (parse_exp (sexp_from_string "(if 23 true false)")) empty_env empty_fenv) in 
+  check_raises "if received a non-boolean as condition" 
+  (RTError "Type error: Expected boolean but got 23") v
+    
 let test_error_III () =
   let v = (fun () -> ignore @@ interp (Prim2 (Add, Bool true,  Num (-1L))) empty_env empty_fenv) in 
   check_raises "incorrect addition" 
@@ -475,6 +471,49 @@ let test_set_index_out_of_bounds () =
   check_raises  "should report index 3 out of bounds" 
   (RTError "Index out of bounds: Tried to access index 3 of (tup 2 true (tup))") v
 
+(* Lambda errors: Type errors raised when trying to App something that isn't a closure,
+   and also arity mismatch errors when Apping lambdas. *)
+let test_lambda_error_App_int () =
+  let v = (fun () -> ignore @@
+                    (interp_prog (parse_prog (sexp_from_string "( 
+                      (@ 1 true))")))
+                    empty_env) in 
+  check_raises  "should report that value in function position is not a closure" 
+  (RTError "Type error: Expected closure but got 1") v
+
+let test_lambda_error_App_bool () =
+  let v = (fun () -> ignore @@
+                    (interp_prog (parse_prog (sexp_from_string "( 
+                      (@ false 1 2))")))
+                    empty_env) in 
+  check_raises  "should report that value in function position is not a closure" 
+  (RTError "Type error: Expected closure but got false") v
+
+let test_lambda_error_App_tuple () =
+  let v = (fun () -> ignore @@
+                    (interp_prog (parse_prog (sexp_from_string "( 
+                      (@ (tup -2 true) 6))")))
+                    empty_env) in 
+  check_raises  "should report that value in function position is not a closure" 
+  (RTError "Type error: Expected closure but got (tup -2 true)") v
+
+let test_lambda_app_arity_mismatch_less_args () =
+  let v = (fun () -> ignore @@
+                    (interp_prog (parse_prog (sexp_from_string "( 
+                      (@ (lambda (x y) (+ y x)) 4))")))
+                    empty_env) in 
+  check_raises  "should report that lambda application received less arguments" 
+  (CTError "Arity mismatch: closure expected 2 arguments but got 1") v
+
+let test_lambda_app_arity_mismatch_more_args () =
+  let v = (fun () -> ignore @@
+                    (interp_prog (parse_prog (sexp_from_string "( 
+                      (@ (lambda () (tup 1 2)) false 6 (tup)))")))
+                    empty_env) in 
+  check_raises  "should report that lambda application received more arguments" 
+  (CTError "Arity mismatch: closure expected 0 arguments but got 3") v
+
+
 (* OCaml tests: extend with your own tests *)
 let ocaml_tests = [
   "parse", [
@@ -491,14 +530,12 @@ let ocaml_tests = [
     test_case "A conjunction" `Quick test_parse_and ;
     test_case "An if clause" `Quick test_parse_fork ;
     test_case "A definition" `Quick test_parse_let ;
-    test_case "tuple pattern matching" `Quick test_parse_let_tuple ;
-
     test_case "A lambda with no parameters" `Quick test_parse_lambda_empty ;
     test_case "A lambda" `Quick test_parse_lambda ;
     test_case "A letrec with no lambdas" `Quick test_parse_letrec_empty ;
-    test_case "A letrec with an apply" `Quick test_parse_letrec ;
+    test_case "A letrec with an App" `Quick test_parse_letrec ;
     test_case "A compound expression" `Quick test_parse_compound ;
-    test_case "An invalid s-expression" `Quick test_parse_error
+    test_case "An invalid s-expression" `Quick test_parse_error ;
   ] ;
   "interp", [
     test_case "A number" `Quick test_interp_num ;
@@ -510,8 +547,6 @@ let ocaml_tests = [
     test_case "An addition" `Slow test_interp_add ;
     test_case "A lesser comparison" `Slow test_interp_less ;
     test_case "A conjunction" `Slow test_interp_and ;
-    test_case "`and` is lazy" `Quick lazy_and ;
-
     test_case "An if clause when true" `Slow test_interp_fork_1 ;
     test_case "An if clause when false" `Slow test_interp_fork_2 ;
     test_case "A simple definition" `Slow test_interp_let_1 ;
@@ -526,8 +561,8 @@ let ocaml_tests = [
     test_case "A lambda with no parameters" `Slow test_interp_lambda_empty ;
     test_case "A lambda" `Slow test_interp_lambda ;
     test_case "A letrec no lambdas" `Slow test_interp_letrec_empty ;
-    test_case "A letrec" `Slow test_interp_letrec
-    
+    test_case "A letrec" `Slow test_interp_letrec ;
+    test_case "`and` is lazy" `Quick lazy_and ;
   ] ;
   "errors", [
     test_case "Addition of true" `Quick test_error_III ;
@@ -555,6 +590,12 @@ let ocaml_tests = [
     test_case "Tuple Set: Multiple ill-typed arguments" `Quick test_set_error_multi_ill_typed;
     test_case "Tuple Set: Index out of bounds" `Quick test_set_index_out_of_bounds ;
 
+    test_case "Lambda App: Integer instead of closure" `Quick test_lambda_error_App_int ;
+    test_case "Lambda App: Boolean instead of closure" `Quick test_lambda_error_App_bool ;
+    test_case "Lambda App: Tuple instead of closure" `Quick test_lambda_error_App_tuple ;
+
+    test_case "Lambda App: Received less args" `Quick test_lambda_app_arity_mismatch_less_args ;
+    test_case "Lambda App: Received more args" `Quick test_lambda_app_arity_mismatch_more_args ;
   ]
 ]     
 
@@ -576,4 +617,4 @@ let () =
       )
     ) in
     tests_from_dir ~compile_flags ~compiler ~oracle ~runtime:"rt/sys.c" "bbctests" in
-  run "Tests entrega 1" (ocaml_tests @ bbc_tests)
+  run "Tests entrega 4" (ocaml_tests @ bbc_tests)

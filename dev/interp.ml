@@ -24,7 +24,7 @@ match v with
     | [] -> ""
     | e::l -> " " ^ string_of_val !e ^ string_of_val_list l) in 
   "(tup"^(string_of_val_list vals)^")"
-| ClosureV (arity, _) -> Printf.sprintf "<clos:%d>" arity
+| ClosureV (arity, _) -> sprintf "<clos:%d>" arity
 
 
 (* Lexical Environment *)
@@ -71,7 +71,7 @@ let liftBB : (bool -> bool) -> value -> value =
   fun op e ->
     match e with
     | BoolV b -> BoolV (op b)
-    | _ -> raise (RTError (Printf.sprintf "Type error: Expected a boolean, but got %s" (string_of_val e)))
+    | _ -> raise_type_error "boolean" e
 
 let liftIII : (int64 -> int64 -> int64) -> value -> value -> value =
   fun op e1 e2 ->
@@ -220,14 +220,14 @@ let rec interp (expr : expr) env fenv =
       let env = extend_env params vals env in
       interp body env fenv))
   | LamApp (fun_exp, args) ->
-    let f = interp fun_exp env fenv in
-      (match f with
+    let fun_val = interp fun_exp env fenv in
+      (match fun_val with
       | ClosureV (arity, closure) -> 
         let vals = List.map (fun e -> interp e env fenv) args in
-        if List.length vals <> arity then
-          raise (RTError (Printf.sprintf "Expected closure of arity %d, but got %s" (List.length args) (string_of_val f)))
-          else closure vals
-      | _ -> raise (RTError (Printf.sprintf "Expected closure of arity %d, but got %s" (List.length args) (string_of_val f))) )
+        let received_count = List.length vals in
+          check_arity "closure" arity received_count ;
+          closure vals
+      | _ -> raise_type_error "closure" fun_val )
   | LetRec (recs, body) -> 
     let env_box = ref [] in
     let names_n_closures = List.map (
@@ -245,3 +245,6 @@ let interp_prog prog env =
   let defs, expr = prog in
   let fenv = defs_prelude @ defs in
   interp expr env fenv
+
+let run (p : string) : value =
+  interp_prog (parse_prog (sexp_from_string p)) []
