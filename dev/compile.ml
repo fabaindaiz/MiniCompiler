@@ -80,7 +80,7 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     instrs @ (* make sure the index is within the size of the tuple *)
 
     [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
-    [ IMov (Reg R11, Reg R10) ; IMov (Reg RAX, HeapOffset(R11, RAX)) ] in (* treat R11 as a pointer, and get its nth word *)
+    [ IMov (Reg RAX, HeapOffset(R10, RAX)) ] in (* treat R11 as a pointer, and get its nth word *)
   
   let reg_offset = get_offset env in
     (match op with

@@ -32,3 +32,6 @@ _opam/
 # Build results
 *.s
 *.run
+
+# Segmentation fault
+core
