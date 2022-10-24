@@ -1,0 +1,6 @@
+(
+  (def (add3 x) (+ 3 x))
+  (def (map-pair f p) (tup (@ f (get p 0)) (@ f (get p 1))))
+
+  (map-pair (lambda (x) (add3 x)) (tup 39 2))
+)

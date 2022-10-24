@@ -1,0 +1,8 @@
+(
+    (def (fib n) (if (<= n 1) 1 (+ (fib (+ n -1)) (fib (+ n -2)))))
+    (def (pair-fun f g p) (tup (@ f (get p 0)) (@ g (get p 1))))
+
+    (pair-fun (lambda (x) (+ 3 x))
+            (lambda (y) (pair-fun (lambda (n) (fib n)) (lambda (z) (+ z y)) (tup y y)))
+            (tup 39 6))
+)

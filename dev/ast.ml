@@ -36,6 +36,9 @@ type expr =
 | App of string * expr list
 | Tuple of expr list 
 | Set of expr * expr * expr 
+| Lambda of string list * expr
+| LamApp of expr * expr list
+| LetRec of (string * string list * expr) list * expr
 
 (* Algebraic tagged datatype for expressions *)
 type 'a eexpr =
@@ -49,6 +52,9 @@ type 'a eexpr =
 | EApp of string * 'a eexpr list * 'a
 | ETuple of 'a eexpr list * 'a
 | ESet of 'a eexpr * 'a eexpr * 'a eexpr * 'a
+| ELambda of string list * 'a eexpr * 'a
+| ELamApp of 'a eexpr * 'a eexpr list * 'a
+| ELetRec of (string * string list * 'a eexpr) list * 'a eexpr * 'a
 
 (* C function argument types *)
 type ctype =
@@ -125,6 +131,9 @@ let rec tag_expr_help (e : expr) (cur : tag) : (tag eexpr * tag) =
     let (tag_p, next_tag2) = tag_expr_help pos next_tag1 in
     let (tag_v, next_tag3) = tag_expr_help v next_tag2 in
     (ESet (tag_t, tag_p, tag_v, cur), next_tag3)
+  | Lambda (params, body) -> failwith ("TODO")
+  | LamApp (fe, ael) -> failwith ("TODO")
+  | LetRec (recs, body) -> failwith ("TODO")
 
 let tag_expr (e : expr) : tag eexpr =
   let (tagged, _) = tag_expr_help e 1 in tagged
@@ -188,11 +197,19 @@ let rec string_of_expr(e : expr) : string =
   | If (e1, e2, e3) -> sprintf "(if %s %s %s)" (string_of_expr e1) (string_of_expr e2) (string_of_expr e3)
   | App (f, e1) -> sprintf "(app %s (%s))" f (string_of_elist string_of_expr e1)
   | Tuple (exprs) -> sprintf "(tup %s)" (string_of_exprs exprs) 
-  | Set (e, k, v) -> sprintf "(set %s %s %s)" (string_of_expr e) (string_of_expr k) (string_of_expr v) 
+  | Set (e, k, v) -> sprintf "(set %s %s %s)" (string_of_expr e) (string_of_expr k) (string_of_expr v)
+  | Lambda (params, body) -> sprintf "(lambda (%s) %s)" (String.concat " " params) (string_of_expr body)
+  | LamApp (fe, ael) -> sprintf "(%s %s)" (string_of_expr fe) (String.concat " " (List.map string_of_expr ael))
+  | LetRec (recs, body) -> sprintf "(letrec (%s) %s)" (String.concat " " (List.map (
+      fun (name, params, body) -> 
+        sprintf "(%s %s)" name (string_of_expr (Lambda (params, body)))
+        ) recs
+      )) (string_of_expr body)
+  
   and string_of_exprs (e: expr list) : string = 
-      match e with
-      | [] -> ""
-      | h :: t -> " " ^ (string_of_expr h) ^ (string_of_exprs t) 
+    match e with
+    | [] -> ""
+    | h :: t -> " " ^ (string_of_expr h) ^ (string_of_exprs t) 
 
 
 (** functions below are not used, would be used if testing the parser on defs **)

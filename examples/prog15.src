@@ -1,0 +1,5 @@
+(
+  (def (f x) (+ x -1))
+  (let (g (lambda (x) (if x 7 13)))
+    (tup (@ (lambda (x) (+ x 1)) 41) (@ g true) (f 3)))
+)

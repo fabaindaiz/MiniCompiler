@@ -172,6 +172,10 @@ let rec compile_expr (e : tag eexpr) (env : regenv) (fenv : funenv) (nenv : name
     [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
     [ IMov (Reg R11, RegOffset (RBP, reg_value)) ; IMov (HeapOffset (R10, RAX), Reg R11) ] @ (* move v to nth word *)
     [ IMov (Reg RAX, tuple_arg) ] (* returns tuple *)
+  
+  | ELambda (params, body, _) -> failwith ("TODO")
+  | ELamApp (fe, ael, _) -> failwith ("TODO")
+  | ELetRec (recs, body, _) -> failwith ("TODO")
 
 
 (* Caso 1 : Compilación normal *)

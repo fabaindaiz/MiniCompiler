@@ -45,12 +45,15 @@ let rec num_expr (expr : tag eexpr) : int =
   | EPrim2 (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
   | ELet (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
   | EIf (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
-  | ESet (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
   | EApp (_, elist, _) -> num_expr_list elist
-  and num_expr_list (elist: tag eexpr list) : int =
-    match elist with
-    | [] -> 0
-    | e1::tail -> (max (num_expr e1) (num_expr_list tail))
+  | ESet (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
+  | ELambda (params, body, _) -> failwith ("TODO")
+  | ELamApp (fe, ael, _) -> failwith ("TODO")
+  | ELetRec (recs, body, _) -> failwith ("TODO")
+    and num_expr_list (elist: tag eexpr list) : int =
+      match elist with
+      | [] -> 0
+      | e1::tail -> (max (num_expr e1) (num_expr_list tail))
 
     
 (* gensym for string labels *)
