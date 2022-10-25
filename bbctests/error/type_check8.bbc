@@ -1,0 +1,7 @@
+NAME: type check error 8
+DESCRIPTION: evaluate a false if
+SRC:
+(let (x true)
+ (if (tup x) (add1 0) (sub1 2)))
+EXPECTED:
+|ORACLE
