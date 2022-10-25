@@ -82,7 +82,8 @@ let error_not_number (reg : reg) (num : int) (tag : int) : instruction list =
 (*  0x...1 & 0x1 = 0x1 *)
 let error_not_boolean (reg : reg) (num : int) (tag : int) : instruction list =
   let label = sprintf "test_%d_%d" tag num in
-    [ ITest(Reg reg, Const 1L) ; IJnz(label) ] @
+    [ IMov(Reg R11, Reg reg) ; ISub(Reg R11, Const 1L) ] @
+    [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
     (error_asm err_not_boolean reg label)
 
 (* 0x...1 & 0x11 = 0x11 *)
