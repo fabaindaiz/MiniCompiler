@@ -11,6 +11,7 @@ let max_int = Int64.div Int64.max_int 2L
 let int_tag = 0L
 let bool_tag = 1L
 let tuple_tag = 3L
+let closure_tag = 5L
 let bool_mask = 0x8000000000000000L
 let val_true = Int64.add Int64.min_int bool_tag (* 10..01*)
 let val_false = bool_tag (* 00..01*)
@@ -172,9 +173,30 @@ let rec compile_expr (e : tag eexpr) (env : regenv) (fenv : funenv) (nenv : name
     [ IMov (Reg R11, RegOffset (RBP, reg_value)) ; IMov (HeapOffset (R10, RAX), Reg R11) ] @ (* move v to nth word *)
     [ IMov (Reg RAX, tuple_arg) ] (* returns tuple *)
   
-  | ELambda (params, body, _) -> failwith ("TODO")
-  | ELamApp (fe, ael, _) -> failwith ("TODO")
-  | ELetRec (recs, body, _) -> failwith ("TODO")
+  | ELambda (params, body, tag) -> let fun_name = sprintf "lambda_%d" tag in
+    let env' = env_from_args params @ env in (* TODO: make args dont step on each other (?) *)
+    let end_name = sprintf "end_%d" tag in
+    let instrs = (compile_expr (body) env' fenv nenv) in
+    let arg_len = (List.length params) in
+    (* compile function *)
+    [IJmp end_name] @ callee_instrs fun_name instrs (num_expr e + arg_len) @ [ILabel end_name] @
+    (* create lambda tuple *)
+    [IMov (Reg RAX, Reg R15); IAdd (Reg RAX, Const closure_tag)] @
+    [IMovq (RegOffset(R15, 0), Const (Int64.of_int arg_len))] (* set arg size at pos 0 *) @
+    [IMovq (RegOffset(R15, -1), Any fun_name); IAdd (Reg R15, Const 16L)](* set func label at pos 1 *)
+    (* TODO: define closure *)
+    
+  | ELamApp (fe, ael, tag) ->  
+  let (env', reg_offset) = extend_regenv (sprintf "temp_%d_1" tag) env in
+  let compile_elist (exprs : tag eexpr list) : instruction list list =
+    List.fold_left (fun res i -> res @ [ (compile_expr i env' fenv nenv) ]) [] exprs in
+    (* TODO: check arity *)
+      let call_lambda = [IMov (Reg R10, RegOffset(RBP, reg_offset)); ISub(Reg R10, Const closure_tag); (* untag *)
+       ICallArg (RegOffset(R10, -1))] (* call second val of func tuple *) in
+      compile_expr fe env fenv nenv @ [IMov (RegOffset (RBP, reg_offset), Reg RAX)] @ 
+      (caller_instrs_lambda call_lambda (compile_elist ael))
+
+  | ELetRec (recs, body, _) -> failwith ("TODO rec")
 
 
 (* Caso 1 : Compilación normal *)
@@ -183,7 +205,7 @@ let rec compile_expr (e : tag eexpr) (env : regenv) (fenv : funenv) (nenv : name
   Utilizando esta compilación una función solo se pueden llamar a si misma o otra funciones definidas antes *)
 
 (* compile a enviroment & function *)
-let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : (instruction list * funenv * nameenv) =
+and compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : (instruction list * funenv * nameenv) =
   match func with
   | EDefFun (fun_name, arg_list, e, _) ->
     let fenv' = (fun_name, List.length arg_list) :: fenv in (* definir esto antes permite funciones recursivas *)

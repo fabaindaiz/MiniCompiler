@@ -47,8 +47,8 @@ let rec num_expr (expr : tag eexpr) : int =
   | EIf (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
   | EApp (_, elist, _) -> num_expr_list elist
   | ESet (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
-  | ELambda (params, body, _) -> failwith ("TODO")
-  | ELamApp (fe, ael, _) -> failwith ("TODO")
+  | ELambda (_, body, _) -> num_expr body
+  | ELamApp (fe, ael, _) -> max (num_expr_list ael) (num_expr fe)
   | ELetRec (recs, body, _) -> failwith ("TODO")
     and num_expr_list (elist: tag eexpr list) : int =
       match elist with
@@ -225,11 +225,16 @@ let caller_restore =
   [ IPop(Reg RDI) ; IPop(Reg RSI) ; IPop(Reg RDX) ; IPop(Reg RCX) ; IPop(Reg R8) ; IPop(Reg R9) ]
 
 (* generate instruction for call *)
-let caller_val (target : string) (args : instruction list) (num : int): instruction list =
-  caller_save @ args @ [ ICall(target) ] @ (* pass the arguments and call the function *)
+let caller_val (calli : instruction list) (args : instruction list) (num : int): instruction list =
+  caller_save @ args @  calli  @ (* pass the arguments and call the function *)
   (if num >= 7 then [ IAdd(Reg RSP, Const (Int64.of_int ((num - 6) * 8))) ] else []) @ caller_restore
 
 let caller_instrs (target : string) (instrs_list : instruction list list): instruction list =
   let instrs = (List.rev (caller_args instrs_list)) in (* arguments for the call *)
   let args_num = List.length instrs_list in (* number of arguments *)
-    (caller_val target instrs args_num)
+    (caller_val [(ICall target)] instrs args_num)
+
+let caller_instrs_lambda (calli : instruction list) (instrs_list : instruction list list): instruction list =
+  let instrs = (List.rev (caller_args instrs_list)) in (* arguments for the call *)
+  let args_num = List.length instrs_list in (* number of arguments *)
+    (caller_val calli instrs args_num)

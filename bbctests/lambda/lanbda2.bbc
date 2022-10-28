@@ -1,0 +1,12 @@
+NAME: lambda2
+DESCRIPTION: evaluates a function declaration after saving vars in stack
+SRC:
+(
+  (let (add (lambda (x) (lambda (y) (+ x y))))
+    (let (applyToFive (lambda (it) (@ it 5)))
+        (let (incr (@ add 1))
+            (let (add5 (@ add 5))
+                (tup (@ applyToFive incr) (@ applyToFive add5))))))
+)
+EXPECTED:
+|ORACLE

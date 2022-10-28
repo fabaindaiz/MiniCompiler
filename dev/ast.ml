@@ -131,8 +131,16 @@ let rec tag_expr_help (e : expr) (cur : tag) : (tag eexpr * tag) =
     let (tag_p, next_tag2) = tag_expr_help pos next_tag1 in
     let (tag_v, next_tag3) = tag_expr_help v next_tag2 in
     (ESet (tag_t, tag_p, tag_v, cur), next_tag3)
-  | Lambda (params, body) -> failwith ("TODO")
-  | LamApp (fe, ael) -> failwith ("TODO")
+    | Lambda (params, body) -> 
+      let (tag_body, next_tag) = tag_expr_help body (cur + 1) in
+      (ELambda (params, tag_body, cur), next_tag)
+    | LamApp (fe, ael) -> 
+      let (tag_fe, next_tag1) = tag_expr_help fe (cur + 1) in
+      let next_tag2 = ref next_tag1 in
+      let tag_e = List.fold_left (fun res i -> res @
+        let (tag_i, temp_tag) = (tag_expr_help i !next_tag2) in
+          next_tag2 := temp_tag ;  [ tag_i ] ) [] ael in
+      (ELamApp (tag_fe, tag_e, cur), !next_tag2)
   | LetRec (recs, body) -> failwith ("TODO")
 
 let tag_expr (e : expr) : tag eexpr =

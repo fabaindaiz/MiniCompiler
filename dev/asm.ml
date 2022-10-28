@@ -23,6 +23,7 @@ type arg =
 | Reg of reg (* any named and stack register *)
 | RegOffset of reg * int (* RegOffset(reg, i) represents address [reg + 8*i] *)
 | HeapOffset of reg * reg
+| Any of string (* encapsulate any string as an arg *)
 
 (* asm instructions *)
 type instruction =
@@ -46,6 +47,7 @@ type instruction =
 | IPop of arg
 | ILabel of string
 | ICall of string
+| ICallArg of arg
 | IJmp of string
 | IJnz of string
 | IJz of string
@@ -81,6 +83,7 @@ let pp_arg arg : string =
   | Reg r -> pp_reg r
   | RegOffset (a1, a2) -> sprintf "[%s - %d]" (pp_reg a1) (8  * a2)
   | HeapOffset (a1, a2) -> sprintf "[%s + %s]" (pp_reg a1) (pp_reg a2)
+  | Any s -> s
 
 (* asm instruction to string *)
 let pp_instr instr : string =
@@ -105,6 +108,7 @@ let pp_instr instr : string =
   | IPop (a1) -> sprintf "  pop %s" (pp_arg a1)
   | ILabel (s) -> sprintf "%s:" s
   | ICall (s) -> sprintf "  call %s" s
+  | ICallArg (a) -> sprintf "  call %s" (pp_arg a)
   | IJmp (s) -> sprintf "  jmp %s" s
   | IJnz (s) -> sprintf "  jnz %s" s
   | IJz (s) -> sprintf "  jz %s" s
