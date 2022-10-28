@@ -190,7 +190,7 @@ let rec compile_expr (e : tag eexpr) (env : regenv) (fenv : funenv) (nenv : name
   let (env', reg_offset) = extend_regenv (sprintf "temp_%d_1" tag) env in
   let compile_elist (exprs : tag eexpr list) : instruction list list =
     List.fold_left (fun res i -> res @ [ (compile_expr i env' fenv nenv) ]) [] exprs in
-    (* TODO: check arity *)
+    (* TODO: check arity and closure tag *)
       let call_lambda = [IMov (Reg R10, RegOffset(RBP, reg_offset)); ISub(Reg R10, Const closure_tag); (* untag *)
        ICallArg (RegOffset(R10, -1))] (* call second val of func tuple *) in
       compile_expr fe env fenv nenv @ [IMov (RegOffset (RBP, reg_offset), Reg RAX)] @ 
@@ -205,7 +205,7 @@ let rec compile_expr (e : tag eexpr) (env : regenv) (fenv : funenv) (nenv : name
   Utilizando esta compilación una función solo se pueden llamar a si misma o otra funciones definidas antes *)
 
 (* compile a enviroment & function *)
-and compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : (instruction list * funenv * nameenv) =
+let compile_function (func : tag efundef) (fenv : funenv) (nenv : nameenv) : (instruction list * funenv * nameenv) =
   match func with
   | EDefFun (fun_name, arg_list, e, _) ->
     let fenv' = (fun_name, List.length arg_list) :: fenv in (* definir esto antes permite funciones recursivas *)

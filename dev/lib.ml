@@ -46,8 +46,8 @@ let rec num_expr (expr : tag eexpr) : int =
   | ELet (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
   | EIf (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
   | EApp (_, elist, _) -> num_expr_list elist
-  | ESet (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
-  | ELambda (_, body, _) -> num_expr body
+  | ESet (c, e1, e2, _) -> 2 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
+  | ELambda (_, _, _) -> 0
   | ELamApp (fe, ael, _) -> max (num_expr_list ael) (num_expr fe)
   | ELetRec (recs, body, _) -> failwith ("TODO")
     and num_expr_list (elist: tag eexpr list) : int =
