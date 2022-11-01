@@ -5,33 +5,33 @@ open Ast
 
 
 (* data structure to attach registers to variables *)
-type regenv = (string * arg) list
+type renv = (string * arg) list
 (* data structure to save defined functions *)
-type funenv = (string * int) list
+type fenv = (string * int) list
 (* data structure to save functions names *)
-type nameenv = (string * string) list
+type nenv = (string * string) list
 
 
-type envs = (regenv * funenv * nameenv)
+type envs = (renv * fenv * nenv)
 
 
-let empty_regenv : regenv = []
+let empty_env : renv = []
 
 (* Obtiene el offset de la variable actual*)
-let rec get_offset (env : regenv) : int =
+let rec get_offset (env : renv) : int =
   match env with
   | (_, RegOffset(_, _))::tail -> 1 + get_offset tail (* cuenta solo registros que apuntan a la pila *)
   | _::tail -> get_offset tail
   | _ -> 1
 
 (* extiende el ambiente con una variable del usuario *)
-let extend_regenv (x : string) (env : regenv) : (regenv * int) =
+let extend_renv (x : string) (env : renv) : (renv * int) =
   let reg_offset = (get_offset env) in
   ((x, RegOffset (RBP, reg_offset)) :: env, reg_offset)
 
-let extend_regenv_reg (x : string * arg) (env : regenv) : (regenv) =
-  let id, register = x in
-  ((id, register) :: env)
+let extend_renv_reg (x : string * arg) (env : renv) : (renv) =
+  let id, reg = x in
+  ((id, reg) :: env)
 
 
 (* calculate an aprox number of used argument *)
@@ -75,42 +75,39 @@ let error_asm (error : int64) (reg : reg) (label : string) : instruction list =
   [ IMov(Reg RSI, Reg reg) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
   [ ICall("error") ; ILabel(label) ] (* Si la cumple, salta al label *)
 
-(* !0x...0 & 0x1 = 0x1 *)
-let error_not_number (reg : reg) (num : int) (tag : int) : instruction list =
-  let label = sprintf "test%d_%d" num tag in
+let type_error_check (t : etype) (reg : reg) (tag : tag) (num : int): instruction list =
+  let label = sprintf "test_%d_%d" tag num in
+  match t with
+  | EAny -> []
+  | ENum -> (* !0x...0 & 0x1 = 0x1 *)
     [ IMov(Reg R11, Reg reg) ; IXor(Reg R11, Const 1L) ] @
     [ ITest(Reg R11, Const 1L) ; IJnz(label) ] @
     (error_asm err_not_number RAX label)
-
-(*  0x...1 & 0x1 = 0x1 *)
-let error_not_boolean (reg : reg) (num : int) (tag : int) : instruction list =
-  let label = sprintf "test_%d_%d" tag num in
-  [ IMov(Reg R11, Reg reg) ; ISub(Reg R11, Const 1L) ] @
-  [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
+  | EBool -> (*  0x...1 & 0x1 = 0x1 *)
+    [ IMov(Reg R11, Reg reg) ; ISub(Reg R11, Const 1L) ] @
+    [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
     (error_asm err_not_boolean reg label)
-
-(* 0x...1 & 0x11 = 0x11 *)
-let error_not_tuple (reg : reg) (num : int) (tag : int) : instruction list =
-  let label = sprintf "test_%d_%d" tag num in
-  let label_err = sprintf "error_%d_%d" tag num in
+  | ETuple -> (* 0x...1 & 0x11 = 0x11 *)
+    let label_err = sprintf "error_%d_%d" tag num in
     [ ITest(Reg reg, Const 1L) ; IJz(label_err) ] @
     [ ITest(Reg reg, Const 2L) ; IJnz(label) ; ILabel(label_err) ] @
-    (error_asm err_not_tuple reg label) (* TODO *)
+    (error_asm err_not_tuple reg label)
+  | EClosure -> []
 
 
 let error2_asm (error : int64) (reg1 : arg) (reg2 : arg) (label : string) : instruction list = 
   [ IMov(Reg RDX, reg2) ; IMov(Reg RSI, reg1) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
   [ ICall("error2") ; ILabel(label) ] (* Si la cumple, salta al label *)
 
-let error_bad_index_low (reg1 : arg) (reg2 : arg) (num : int) (tag : int) : instruction list =
+let error_bad_index_low (reg1 : arg) (reg2 : arg) (tag : tag) (num : int) : instruction list =
   let label = sprintf "test_%d_%d" tag num in
-    [ ICmp (reg1, Const 0L) ; IJge(label) ; ISal (reg1, Const 1L) ] @
-    (error2_asm err_bad_index_low reg1 reg2 label)
+  [ ICmp (reg1, Const 0L) ; IJge(label) ; ISal (reg1, Const 1L) ] @
+  (error2_asm err_bad_index_low reg1 reg2 label)
 
-let error_bad_index_high (reg1 : arg) (reg2 : arg) (lim : arg) (num : int) (tag : int) : instruction list =
+let error_bad_index_high (reg1 : arg) (reg2 : arg) (lim : arg) (tag : tag) (num : int) : instruction list =
   let label = sprintf "test_%d_%d" tag num in
-    [ ICmp (reg1, lim) ; IJl(label) ; ISal (reg1, Const 1L) ] @
-    (error2_asm err_bad_index_high reg1 reg2 label)
+  [ ICmp (reg1, lim) ; IJl(label) ; ISal (reg1, Const 1L) ] @
+  (error2_asm err_bad_index_high reg1 reg2 label)
 
 
 let rsp_mask = 0xfffffff0
@@ -153,88 +150,70 @@ let ccall_reg (num : int) : (instruction list) =
   | _ -> [ IMov(Reg RAX, RegOffset(RBP, -num+5)) ] (* arg 7 está en rbp + 16 y de ahi subiendo (bajando¿) *)
         @ [IPush(Reg RAX)] (* como se movio la pila hay que volver a poner el valor *)
 
-let ctype_error (ctype : ctype) (num : int) (tag : int) : instruction list =
+let ctype_error (ctype : ctype) (tag : tag) (num : int) : instruction list =
   match ctype with
   | CAny -> []
-  | CInt -> (error_not_number RAX num tag)
-  | CBool -> (error_not_boolean RAX num tag)
-  | CTuple _ -> failwith ("TODO")
+  | CInt -> (type_error_check ENum RAX tag num)
+  | CBool -> (type_error_check EBool RAX tag num)
+  | CTuple _ -> (type_error_check ETuple RAX tag num)
 
 (* c calls type verification *)
 let ccall_list (type_list : ctype list) (tag : int) : instruction list =
   let _ = callee_gensym true in
   List.fold_left (fun res i -> res @ 
     let num = (callee_gensym false) in
-    (ccall_reg num) @ (ctype_error i num tag)) [] type_list
+    (ccall_reg num) @ (ctype_error i tag num)) [] type_list
 
 let ccall_ret (type_ret : ctype) (tag : int) : instruction list =
-  (ctype_error type_ret 0 tag) 
+  (ctype_error type_ret tag 0) 
 
 let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) (tag : int) : instruction list =
   callee_start call_name 0 @ (ccall_list type_list tag) @ [ ICall(fun_name) ] @
   (ccall_ret type_ret tag) @ callee_end
-
-
-(* reseteable gensym for caller *)
-let caller_gensym =
-  let c_counter = ref 0 in
-  (fun reset ->
-    if reset then
-      c_counter := 0
-    else
-      incr c_counter;
-    !c_counter );;
-
-(* get instruction for argument *)
-let caller_match (num : int) : instruction list =
-  match num with
-  | 1 -> [ IMov(Reg RDI, Reg RAX) ]
-  | 2 -> [ IMov(Reg RSI, Reg RAX) ]
-  | 3 -> [ IMov(Reg RDX, Reg RAX) ]
-  | 4 -> [ IMov(Reg RCX, Reg RAX) ]
-  | 5 -> [ IMov(Reg R8, Reg RAX) ]
-  | 6 -> [ IMov(Reg R9, Reg RAX) ]
-  | _ -> [ IPush(Reg RAX) ]
+  
 
 (* get enviroment from args list to compile function *)  
-let env_from_args (args : string list) : regenv =
-  let rec env_arg_help (l : string list) (count : int) : regenv = 
-    match l with
-    | [] -> empty_regenv
-    | id::tail ->
-      (match count with
-      | 1 -> extend_regenv_reg (id, (Reg RDI))
-      | 2 -> extend_regenv_reg (id, (Reg RSI)) 
-      | 3 -> extend_regenv_reg (id, (Reg RDX)) 
-      | 4 -> extend_regenv_reg (id, (Reg RCX)) 
-      | 5 -> extend_regenv_reg (id, (Reg R8)) 
-      | 6 -> extend_regenv_reg (id, (Reg R9)) 
-      | _ -> extend_regenv_reg (id, (RegOffset (RBP, -count+5)))) (env_arg_help tail (count+1))
-    in env_arg_help args 1 
+let env_from_args (args : string list) : renv =
+  let rec env_arg_help (ids : string list) (count : int) : renv = 
+    match ids with
+    | [] -> empty_env
+    | id::tail -> (match count with
+      | 1 -> extend_renv_reg (id, (Reg RDI))
+      | 2 -> extend_renv_reg (id, (Reg RSI)) 
+      | 3 -> extend_renv_reg (id, (Reg RDX)) 
+      | 4 -> extend_renv_reg (id, (Reg RCX)) 
+      | 5 -> extend_renv_reg (id, (Reg R8)) 
+      | 6 -> extend_renv_reg (id, (Reg R9)) 
+      | _ -> extend_renv_reg (id, (RegOffset (RBP, -count+5))) )
+      (env_arg_help tail (count+1)) in
+  env_arg_help args 1 
 
-
+  
 (* generate an instruction for each argument *)
 let caller_args (instrs : instruction list list) : instruction list =
-  let _ = caller_gensym true in
-  List.fold_left (fun res i -> res @ caller_match (caller_gensym false) @ List.rev i ) [] instrs
+  let rec caller_args_help (l : instruction list list) (count : int) : instruction list =
+    match l with
+    | [] -> []
+    | inst::tail ->
+      let save = (match count with
+      | 1 -> [ IMov(Reg RDI, Reg RAX) ]
+      | 2 -> [ IMov(Reg RSI, Reg RAX) ]
+      | 3 -> [ IMov(Reg RDX, Reg RAX) ]
+      | 4 -> [ IMov(Reg RCX, Reg RAX) ]
+      | 5 -> [ IMov(Reg R8, Reg RAX) ]
+      | 6 -> [ IMov(Reg R9, Reg RAX) ]
+      | _ -> [ IPush(Reg RAX) ] ) in
+      (inst @ save @ (caller_args_help tail (count+1))) in
+  (caller_args_help instrs 1)
 
-let caller_save =
+let caller_save : instruction list =
   [ IPush(Reg R9) ; IPush(Reg R8) ; IPush(Reg RCX) ; IPush(Reg RDX) ; IPush(Reg RSI) ; IPush(Reg RDI) ]
 
-let caller_restore = 
+let caller_restore (arg_num : int) : instruction list = 
+  (if arg_num >= 7 then [ IAdd(Reg RSP, Const (Int64.of_int ((arg_num - 6) * 8))) ] else []) @
   [ IPop(Reg RDI) ; IPop(Reg RSI) ; IPop(Reg RDX) ; IPop(Reg RCX) ; IPop(Reg R8) ; IPop(Reg R9) ]
 
 (* generate instruction for call *)
-let caller_val (calli : instruction list) (args : instruction list) (num : int): instruction list =
-  caller_save @ args @  calli  @ (* pass the arguments and call the function *)
-  (if num >= 7 then [ IAdd(Reg RSP, Const (Int64.of_int ((num - 6) * 8))) ] else []) @ caller_restore
-
-let caller_instrs (target : string) (instrs_list : instruction list list): instruction list =
-  let instrs = (List.rev (caller_args instrs_list)) in (* arguments for the call *)
-  let args_num = List.length instrs_list in (* number of arguments *)
-    (caller_val [(ICall target)] instrs args_num)
-
-let caller_instrs_lambda (calli : instruction list) (instrs_list : instruction list list): instruction list =
-  let instrs = (List.rev (caller_args instrs_list)) in (* arguments for the call *)
-  let args_num = List.length instrs_list in (* number of arguments *)
-    (caller_val calli instrs args_num)
+let caller_instrs (calli : instruction list) (args : instruction list list) : instruction list =
+  let arg_num = List.length args in
+  caller_save @ (caller_args args) @ calli @ (caller_restore arg_num) (* pass the arguments and call the function *)

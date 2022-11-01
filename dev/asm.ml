@@ -61,7 +61,7 @@ type instruction =
 
 
 (* registers to string *)
-let pp_reg reg : string =
+let pp_reg (reg : reg) : string =
   match reg with
   | RAX -> "RAX"
   | R11 -> "R11"
@@ -77,7 +77,7 @@ let pp_reg reg : string =
   | R15 -> "R15"
 
 (* arguments for instruction to string *)
-let pp_arg arg : string =
+let pp_arg (arg : arg) : string =
   match arg with
   | Const n -> sprintf "%#Lx" n
   | Reg r -> pp_reg r
@@ -86,7 +86,7 @@ let pp_arg arg : string =
   | Any s -> s
 
 (* asm instruction to string *)
-let pp_instr instr : string =
+let pp_instr (instr : instruction) : string =
   match instr with
   | IMov (a1, a2) -> sprintf "  mov %s, %s" (pp_arg a1) (pp_arg a2)
   | IMovq (a1, a2) -> sprintf "  mov qword %s, %s" (pp_arg a1) (pp_arg a2)
