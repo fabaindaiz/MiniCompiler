@@ -90,15 +90,13 @@ let error2_asm (error : int64) (reg1 : arg) (reg2 : arg) (label : string) : inst
   [ IMov(Reg RDI, Const error) ; IMov(Reg RSI, reg1) ; IMov(Reg RDX, reg2) ] @ (* Si no la cumple, prepara el error *)
   [ ICall("error2") ; ILabel(label) ] (* Si la cumple, salta al label *)
 
-let error_bad_index_low (reg1 : arg) (reg2 : arg) (tag : tag) (num : int) : instruction list =
-  let label = sprintf "test_%d_%d" tag num in
-  [ ICmp (reg1, Const 0L) ; IJge(label) ; ISal (reg1, Const 1L) ] @
-  (error2_asm err_bad_index_low reg1 reg2 label)
-
-let error_bad_index_high (reg1 : arg) (reg2 : arg) (lim : arg) (tag : tag) (num : int) : instruction list =
-  let label = sprintf "test_%d_%d" tag num in
-  [ ICmp (reg1, lim) ; IJl(label) ; ISal (reg1, Const 1L) ] @
-  (error2_asm err_bad_index_high reg1 reg2 label)
+let error_tuple_bad_index (reg1 : arg) (reg2 : arg) (lim : arg) (tag : tag) : instruction list =
+  let low_label = sprintf "test_%d_1" tag in
+  let high_label = sprintf "test_%d_2" tag in
+  [ ICmp (reg1, Const 0L) ; IJge(low_label) ; ISal (reg1, Const 1L) ] @
+  (error2_asm err_bad_index_low reg1 reg2 low_label) @
+  [ ICmp (reg1, lim) ; IJl(high_label) ; ISal (reg1, Const 1L) ] @
+  (error2_asm err_bad_index_high reg1 reg2 high_label)
 
 
 let rsp_mask = 0xfffffff0

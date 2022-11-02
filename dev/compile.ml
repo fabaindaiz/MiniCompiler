@@ -21,29 +21,28 @@ let val_false = bool_tag (* 00..01*)
    Retorna instrucciones, direccion tupla (tagged) y registro que contiene direccion (untagged) *) 
 let check_index_in_bounds (compile_expr) (tuple : tag eexpr) (index : tag eexpr) (utuple_reg : reg) (tag : tag) (env : renv) (fenv : fenv) (nenv : nenv) : instruction list * arg =
   let (env', reg_offset) = extend_renv (sprintf "temp_%d_1" tag) env in
-
   let tuple_arg = RegOffset (RBP, reg_offset) in
-    (compile_expr tuple env' fenv nenv) @ (type_error_check ETuple RAX tag 3) @ (* compila tupla *)
-    [ IMov (tuple_arg, Reg RAX) ] @ (* guarda la tupla *)
 
-    (compile_expr index env' fenv nenv) @ (type_error_check ENum RAX tag 4) @ (* compila índice *)
-    [ IMov (Reg utuple_reg, tuple_arg); ISub (Reg R10, Const tuple_tag) ] @ (* save untagged pointer in passed reg*)
-    [ IMov (Reg R11, RegOffset(utuple_reg, 0))] @ (* guarda largo de tupla en R11*)
+  (compile_expr tuple env' fenv nenv) @ (type_error_check ETuple RAX tag 3) @ (* compila tupla *)
+  [ IMov (tuple_arg, Reg RAX) ] @ (* guarda la tupla *)
 
-    [ ISar (Reg RAX, Const 1L) ] @ (* interpreta valor real de index *)
-    (error_bad_index_low (Reg RAX) tuple_arg tag 1) @ (* make sure the index is non-negative *)
-    (error_bad_index_high (Reg RAX) tuple_arg (Reg R11) tag 2) (* make sure the index is within the size of the tuple *)
+  (compile_expr index env' fenv nenv) @ (type_error_check ENum RAX tag 4) @ (* compila índice *)
+  [ IMov (Reg utuple_reg, tuple_arg); ISub (Reg R10, Const tuple_tag) ] @ (* save untagged pointer in passed reg*)
+  [ IMov (Reg R11, RegOffset(utuple_reg, 0)) ] @ (* guarda largo de tupla en R11*)
+
+  (* make sure the index is non-negative and is within the size of the tuple *)
+  [ ISar (Reg RAX, Const 1L) ] @ (error_tuple_bad_index (Reg RAX) tuple_arg (Reg R11) tag)
   , tuple_arg
+
 
 (* compila primitivas unarias *)
 let compile_prim1 (compile_expr) (op : prim1) (e : tag eexpr) (tag : tag) (env : renv) (fenv : fenv) (nenv : nenv) : instruction list =
   let insts =
     (match op with
-    | Add1 -> (type_error_check ENum RAX tag 1) @ [IAdd (Reg RAX, Const 2L)]
-    | Sub1 -> (type_error_check ENum RAX tag 1) @ [IAdd (Reg RAX, Const (-2L))]
-    | Not -> (type_error_check EBool RAX tag 1) @
-      [ IMov (Reg R11, Const bool_mask) ; IXor (Reg RAX, Reg R11) ] ) in 
-      (compile_expr e env fenv nenv) @ insts
+    | Add1 -> (type_error_check ENum RAX tag 1) @ [ IAdd (Reg RAX, Const 2L) ]
+    | Sub1 -> (type_error_check ENum RAX tag 1) @ [ IAdd (Reg RAX, Const (-2L)) ]
+    | Not -> (type_error_check EBool RAX tag 1) @ [ IMov (Reg R11, Const bool_mask) ; IXor (Reg RAX, Reg R11) ] ) in 
+    (compile_expr e env fenv nenv) @ insts
 
 
 (* compila primitivas binarias *)
@@ -76,27 +75,26 @@ let compile_prim2 (compile_expr) (op : prim2) (e1 : tag eexpr) (e2 : tag eexpr) 
     [ IMov (Reg RAX, Const val_false) ; ILabel (jump_label) ] in (* if true, overrides RAX *)
 
   let tuple_eval : instruction list =
+    (* make sure the index is within the size of the tuple *)
     let instrs, _ = (check_index_in_bounds compile_expr e1 e2 R10 tag env' fenv nenv) in  
-      instrs @ (* make sure the index is within the size of the tuple *)
-
-    [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
+    instrs @ [ IAdd (Reg RAX, Const 1L) ; IMul (Reg RAX, Const 8L) ] @ (* get pointer to nth word *)
     [ IMov (Reg RAX, HeapOffset(R10, RAX)) ] in (* treat R11 as a pointer, and get its nth word *)
   
   let reg_offset = get_offset env in
     (match op with
     (* operates value saved in stack with prev value and sets it in RAX*)
-    | Add -> normal_eval [IAdd (Reg RAX, RegOffset (RBP, reg_offset))] ENum
-    | Sub -> normal_eval [ISub (Reg RAX, RegOffset (RBP, reg_offset))] ENum
-    | Mul -> normal_eval ([IMul (Reg RAX, RegOffset (RBP, reg_offset))] @ [ ISar (Reg RAX, Const 1L) ]) ENum
-    | Div -> normal_eval ([IDiv (RegOffset (RBP, reg_offset))] @ [ ISal (Reg RAX, Const 1L) ]) ENum
-    | And -> lazy_eval [IAnd (Reg RAX, RegOffset (RBP, reg_offset))] EBool val_false
-    | Or -> lazy_eval [IOr (Reg RAX, RegOffset (RBP, reg_offset))] EBool val_true
-    | Lt -> normal_eval (cond_eval [ IJl jump_label ]) ENum
-    | Gt -> normal_eval (cond_eval [ IJg jump_label ]) ENum
-    | Lte -> normal_eval (cond_eval [ IJle jump_label ]) ENum
-    | Gte -> normal_eval (cond_eval [ IJge jump_label ]) ENum
-    | Eq -> normal_eval (cond_eval [ IJe jump_label ]) ENum
-    | Neq -> normal_eval (cond_eval [ IJne jump_label ]) ENum
+    | Add -> (normal_eval [IAdd (Reg RAX, RegOffset (RBP, reg_offset))] ENum)
+    | Sub -> (normal_eval [ISub (Reg RAX, RegOffset (RBP, reg_offset))] ENum)
+    | Mul -> (normal_eval ([IMul (Reg RAX, RegOffset (RBP, reg_offset)) ; ISar (Reg RAX, Const 1L)]) ENum)
+    | Div -> (normal_eval ([IDiv (RegOffset (RBP, reg_offset))] @ [ ISal (Reg RAX, Const 1L)]) ENum)
+    | And -> (lazy_eval [IAnd (Reg RAX, RegOffset (RBP, reg_offset))] EBool val_false)
+    | Or -> (lazy_eval [IOr (Reg RAX, RegOffset (RBP, reg_offset))] EBool val_true)
+    | Lt -> (normal_eval (cond_eval [IJl (jump_label)]) ENum)
+    | Gt -> (normal_eval (cond_eval [IJg (jump_label)]) ENum)
+    | Lte -> (normal_eval (cond_eval [IJle (jump_label)]) ENum)
+    | Gte -> (normal_eval (cond_eval [IJge (jump_label)]) ENum)
+    | Eq -> (normal_eval (cond_eval [IJe (jump_label)]) ENum)
+    | Neq -> (normal_eval (cond_eval [IJne (jump_label)]) ENum)
     | Get -> tuple_eval )
 
 
@@ -108,27 +106,27 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     else [ IMov (Reg RAX, Const (Int64.shift_left n 1)) ] 
   | EBool (b, _) ->
     let val_rep = (if b then val_true else val_false) in
-      [ IMov (Reg RAX, Const (val_rep)) ]
+    [ IMov (Reg RAX, Const (val_rep)) ]
   | EId (s, _) ->
     (match List.assoc_opt s env with
-    | Some arg ->[ IMov (Reg RAX, arg)] (* mueve valor desde la pila a RAX *)
-    | None -> failwith(sprintf "unbound variable %s in renv" s) )
+    | Some arg -> [ IMov (Reg RAX, arg)] (* mueve valor desde la pila a RAX *)
+    | None -> failwith (sprintf "unbound variable %s in renv" s) )
   | EPrim1 (op, e, tag) -> 
     (compile_prim1 compile_expr op e tag env fenv nenv)
   | EPrim2 (op, e1, e2, tag) -> 
     (compile_prim2 compile_expr op e1 e2 tag env fenv nenv)
   | ELet (id, e, body, _) -> 
     let (env', reg_offset) = extend_renv id env in
-      (compile_expr e env fenv nenv) @ (* se extrae valor de e y queda en RAX *)
-      [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @ (* se pasa el valor de RAX a la direccion RBP disponible *)
-      (compile_expr body env' fenv nenv) (* se compila body con nuevo env *)
+    (compile_expr e env fenv nenv) @ (* se extrae valor de e y queda en RAX *)
+    [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @ (* se pasa el valor de RAX a la direccion RBP disponible *)
+    (compile_expr body env' fenv nenv) (* se compila body con nuevo env *)
   | EIf (c, t, e, tag) -> 
     let else_label = sprintf "if_false_%d" tag in
     let done_label = sprintf "done_%d" tag in
-      (compile_expr c env fenv nenv) @ (type_error_check EBool RAX tag 1) @
-      [ IMov (Reg R11, Const val_true) ; ICmp (Reg RAX, Reg R11) ; IJne(else_label) ] @
-      (compile_expr t env fenv nenv) @ [ IJmp (done_label) ; ILabel(else_label) ] @
-      (compile_expr e env fenv nenv) @ [ ILabel (done_label) ]
+    (compile_expr c env fenv nenv) @ (type_error_check EBool RAX tag 1) @
+    [ IMov (Reg R11, Const val_true) ; ICmp (Reg RAX, Reg R11) ; IJne(else_label) ] @
+    (compile_expr t env fenv nenv) @ [ IJmp (done_label) ; ILabel (else_label) ] @
+    (compile_expr e env fenv nenv) @ [ ILabel (done_label) ]
   | EApp (f, p, _) -> 
     let args_f = (List.assoc_opt f fenv) in
     let name_f = (List.assoc_opt f nenv) in
@@ -173,28 +171,33 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     [ IMov (Reg R11, RegOffset (RBP, reg_value)) ; IMov (HeapOffset (R10, RAX), Reg R11) ] @ (* move v to nth word *)
     [ IMov (Reg RAX, tuple_arg) ] (* returns tuple *)
   
-  | ELambda (params, body, tag) -> let fun_name = sprintf "lambda_%d" tag in
-    let env' = env_from_args params @ env in (* TODO: make args dont step on each other (?) *)
+  | ELambda (params, body, tag) ->
+    let fun_name = sprintf "lambda_%d" tag in
     let end_name = sprintf "end_%d" tag in
+    
+    let env' = env @ (env_from_args params) in (* TODO: make args dont step on each other (?) *)
     let instrs = (compile_expr (body) env' fenv nenv) in
     let arg_len = (List.length params) in
+    
     (* compile function *)
-    [IJmp end_name] @ callee_instrs fun_name instrs (num_expr e + arg_len) @ [ILabel end_name] @
-    (* create lambda tuple *)
-    [IMov (Reg RAX, Reg R15); IAdd (Reg RAX, Const closure_tag)] @
-    [IMovq (RegOffset(R15, 0), Const (Int64.of_int arg_len))] (* set arg size at pos 0 *) @
-    [IMovq (RegOffset(R15, -1), Any fun_name); IAdd (Reg R15, Const 16L)](* set func label at pos 1 *)
+    [ IJmp (end_name) ] @ (callee_instrs fun_name instrs (num_expr e + arg_len)) @ [ ILabel (end_name) ] @
+    
+    [ IMov (Reg RAX, Reg R15) ; IAdd (Reg RAX, Const closure_tag) ] @ (* create lambda tuple *)
+    [ IMovq (RegOffset(R15, 0), Const (Int64.of_int arg_len)) ] @ (* set arg size at pos 0 *)
+    [ IMovq (RegOffset(R15, -1), Any fun_name) ; IAdd (Reg R15, Const 16L) ](* set func label at pos 1 *)
     (* TODO: define closure *)
     
-  | ELamApp (fe, ael, tag) ->  
-  let (env', reg_offset) = extend_renv (sprintf "temp_%d_1" tag) env in
-  let compile_elist (exprs : tag eexpr list) : instruction list list =
-    List.fold_left (fun res i -> res @ [ (compile_expr i env' fenv nenv) ]) [] exprs in
-    (* TODO: check arity and closure tag *)
-      let call_lambda = [IMov (Reg R10, RegOffset(RBP, reg_offset)); ISub(Reg R10, Const closure_tag); (* untag *)
-       ICallArg (RegOffset(R10, -1))] (* call second val of func tuple *) in
-      compile_expr fe env fenv nenv @ [IMov (RegOffset (RBP, reg_offset), Reg RAX)] @ 
-      (caller_instrs call_lambda (compile_elist ael))
+  | ELamApp (fe, ael, tag) ->
+    let (env', reg_offset) = extend_renv (sprintf "temp_%d_1" tag) env in
+    let call_lambda = [ IMov (Reg R10, RegOffset(RBP, reg_offset)) ] @ (type_error_check EClosure RAX tag 1) @
+    [ ISub (Reg R10, Const closure_tag) ; ICallArg (RegOffset(R10, -1)) ] in (* call second val of func tuple *)
+    
+    let compile_elist (exprs : tag eexpr list) : instruction list list =
+      List.fold_left (fun res i -> res @ [ (compile_expr i env' fenv nenv) ]) [] exprs in
+      
+    compile_expr fe env fenv nenv @ [IMov (RegOffset (RBP, reg_offset), Reg RAX)] @
+    (caller_instrs call_lambda (compile_elist ael))
+    (* TODO: check arity *)
 
   | ELetRec (recs, body, _) -> failwith ("TODO rec")
 
@@ -225,7 +228,7 @@ let compile_functions (flist : tag efundef list) : (instruction list * fenv * ne
     | flist_head::flist_tail -> 
       let instrs', fenv', nenv' = (compile_function flist_head fenv nenv) in
       let t_instrs, t_fenv, t_nenv = (compile_functions_help flist_tail fenv' nenv') in
-        (instrs' @ t_instrs, fenv' @ t_fenv, nenv' @ t_nenv) in
+      (instrs' @ t_instrs, fenv' @ t_fenv, nenv' @ t_nenv) in
   (compile_functions_help flist [] [])
 
 
@@ -291,7 +294,7 @@ let compile_prog (p : prog) : string =
   (* variables internas *)
   let defsys_list, _ = List.split nenv in
   let extern_list = [ "error" ; "error2" ] @ defsys_list in
-  let defsys_string = (List.fold_left (fun res i -> res ^ sprintf "  extern %s\n" i) "" extern_list) in
+  let extern_string = (List.fold_left (fun res i -> res ^ sprintf "  extern %s\n" i) "" extern_list) in
 
   (* compile program *)
-  (prelude defsys_string) ^ (pp_instrs finstrs) ^ (pp_instrs einstrs)
+  (prelude extern_string) ^ (pp_instrs finstrs) ^ (pp_instrs einstrs)
