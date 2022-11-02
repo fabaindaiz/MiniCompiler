@@ -8,10 +8,9 @@ open Lib
 (* constants *)
 let min_int = Int64.div Int64.min_int 2L
 let max_int = Int64.div Int64.max_int 2L
-let int_tag = 0L
 let bool_tag = 1L
-let tuple_tag = 3L
-let closure_tag = 5L
+let tuple_tag = 5L
+let closure_tag = 7L
 let bool_mask = 0x8000000000000000L
 let val_true = Int64.add Int64.min_int bool_tag (* 10..01*)
 let val_false = bool_tag (* 00..01*)
