@@ -42,9 +42,7 @@ void get_value(char* buffer, VAL val) {
 const int ERR_NOT_NUMBER = 1;
 const int ERR_NOT_BOOLEAN = 2;
 const int ERR_NOT_TUPLE = 3;
-const int ERR_BAD_INDEX_LOW = 5;
-const int ERR_BAD_INDEX_HIGH = 6;
-// other error codes here
+const int ERR_NOT_CLOSURE = 4;
 
 void error(int errCode, VAL val) {
   char buffer[50];
@@ -56,11 +54,17 @@ void error(int errCode, VAL val) {
     fprintf(stderr, "Type error: Expected boolean but got %s", buffer);
   } else if (errCode == ERR_NOT_TUPLE) {
     fprintf(stderr, "Type error: Expected tuple but got %s", buffer);
+  } else if (errCode == ERR_NOT_CLOSURE) {
+    fprintf(stderr, "Type error: Expected closure but got %s", buffer);
   } else {
     printf("Unknown error: %d Value: %s", errCode, buffer); // print unknown val in hex
   }
   exit(errCode);
 }
+
+const int ERR_BAD_INDEX_LOW = 1;
+const int ERR_BAD_INDEX_HIGH = 2;
+const int ERR_ARITY_MISMATCH = 3;
 
 void error2(int errCode, VAL val1, VAL val2) {
   char buffer1[50];
@@ -72,6 +76,8 @@ void error2(int errCode, VAL val1, VAL val2) {
     fprintf(stderr, "Index out of bounds: Tried to access index %s of %s", buffer1, buffer2);
   } else if (errCode == ERR_BAD_INDEX_HIGH) {
     fprintf(stderr, "Index out of bounds: Tried to access index %s of %s", buffer1, buffer2);
+  } else if (errCode == ERR_ARITY_MISMATCH) {
+    fprintf(stderr, "Arity mismatch: closure expected %lu arguments but got %lu", val1, val2);
   } else {
     printf("Unknown error: %d Value: %s %s", errCode, buffer1, buffer2); // print unknown val in hex
   }

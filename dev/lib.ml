@@ -61,8 +61,6 @@ let err_not_number = 1L
 let err_not_boolean = 2L
 let err_not_tuple = 3L
 let err_not_closure = 4L
-let err_bad_index_low = 5L
-let err_bad_index_high = 6L
 
 (* apply register test *)
 let error_asm (error : int64) (reg : reg) (label : string) : instruction list = 
@@ -89,6 +87,10 @@ let type_error_check (t : etype) (reg : reg) (tag : tag) (num : int): instructio
     [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
     (error_asm err_not_closure reg label)
 
+
+let err_bad_index_low = 1L
+let err_bad_index_high = 2L
+let err_arity_mismatch = 3L
 
 let error2_asm (error : int64) (reg1 : arg) (reg2 : arg) (label : string) : instruction list = 
   [ IMov(Reg RDI, Const error) ; IMov(Reg RSI, reg1) ; IMov(Reg RDX, reg2) ] @ (* Si no la cumple, prepara el error *)
