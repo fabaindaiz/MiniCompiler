@@ -12,9 +12,6 @@ type fenv = (string * int) list
 type nenv = (string * string) list
 
 
-type envs = (renv * fenv * nenv)
-
-
 let empty_env : renv = []
 
 (* Obtiene el offset de la variable actual*)
@@ -50,53 +47,47 @@ let rec num_expr (expr : tag eexpr) : int =
   | ELambda (_, _, _) -> 0
   | ELamApp (fe, ael, _) -> max (num_expr_list ael) (num_expr fe)
   | ELetRec (recs, body, _) -> failwith ("TODO")
-    and num_expr_list (elist: tag eexpr list) : int =
-      match elist with
-      | [] -> 0
-      | e1::tail -> (max (num_expr e1) (num_expr_list tail))
-
-    
-(* gensym for string labels *)
-let gensym =
-  let a_counter = ref 0 in
-  (fun basename ->
-    a_counter := !a_counter + 1;
-    sprintf "%s_%d" basename !a_counter);;
+  and num_expr_list (elist: tag eexpr list) : int =
+    match elist with
+    | [] -> 0
+    | e1::tail -> (max (num_expr e1) (num_expr_list tail))
 
 
 let err_not_number = 1L
 let err_not_boolean = 2L
 let err_not_tuple = 3L
+let err_not_closure = 4L
 let err_bad_index_low = 5L
 let err_bad_index_high = 6L
 
 (* apply register test *)
 let error_asm (error : int64) (reg : reg) (label : string) : instruction list = 
-  [ IMov(Reg RSI, Reg reg) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
+  [ IMov(Reg RDI, Const error) ; IMov(Reg RSI, Reg reg) ] @ (* Si no la cumple, prepara el error *)
   [ ICall("error") ; ILabel(label) ] (* Si la cumple, salta al label *)
 
 let type_error_check (t : etype) (reg : reg) (tag : tag) (num : int): instruction list =
   let label = sprintf "test_%d_%d" tag num in
   match t with
   | EAny -> []
-  | ENum -> (* !0x...0 & 0x1 = 0x1 *)
-    [ IMov(Reg R11, Reg reg) ; IXor(Reg R11, Const 1L) ] @
-    [ ITest(Reg R11, Const 1L) ; IJnz(label) ] @
+  | ENum -> (* 0x...0 & 0x1 = 0x0 *)
+    [ ITest(Reg reg, Const 1L) ; IJz(label) ] @
     (error_asm err_not_number RAX label)
-  | EBool -> (*  0x...1 & 0x1 = 0x1 *)
+  | EBool -> (*  (0x...1 - 0x1) & 0x111 = 0x0 *)
     [ IMov(Reg R11, Reg reg) ; ISub(Reg R11, Const 1L) ] @
     [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
     (error_asm err_not_boolean reg label)
-  | ETuple -> (* 0x...1 & 0x11 = 0x11 *)
-    let label_err = sprintf "error_%d_%d" tag num in
-    [ ITest(Reg reg, Const 1L) ; IJz(label_err) ] @
-    [ ITest(Reg reg, Const 2L) ; IJnz(label) ; ILabel(label_err) ] @
+  | ETuple -> (* (0x...11 - 0x11) & 0x111 = 0x0 *)
+    [ IMov(Reg R11, Reg reg) ; ISub(Reg R11, Const 3L) ] @
+    [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
     (error_asm err_not_tuple reg label)
-  | EClosure -> []
+  | EClosure -> (* (0x...111 - 0x111) & 0x111 = 0x0 *)
+    [ IMov(Reg R11, Reg reg) ; ISub(Reg R11, Const 5L) ] @
+    [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
+    (error_asm err_not_closure reg label)
 
 
 let error2_asm (error : int64) (reg1 : arg) (reg2 : arg) (label : string) : instruction list = 
-  [ IMov(Reg RDX, reg2) ; IMov(Reg RSI, reg1) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
+  [ IMov(Reg RDI, Const error) ; IMov(Reg RSI, reg1) ; IMov(Reg RDX, reg2) ] @ (* Si no la cumple, prepara el error *)
   [ ICall("error2") ; ILabel(label) ] (* Si la cumple, salta al label *)
 
 let error_bad_index_low (reg1 : arg) (reg2 : arg) (tag : tag) (num : int) : instruction list =
@@ -111,65 +102,52 @@ let error_bad_index_high (reg1 : arg) (reg2 : arg) (lim : arg) (tag : tag) (num 
 
 
 let rsp_mask = 0xfffffff0
-
 let rsp_offset (num : int) : arg =
   Const (Int64.of_int ((num + 8) land rsp_mask))
 
 
-(* reseteable gensym for callee *)
-let callee_gensym =
-  let b_counter = ref 0 in
-  (fun reset ->
-    if reset then
-      b_counter := 0
-    else
-      incr b_counter;
-    !b_counter );;
-
 (* prelude for callee *)
 let callee_start (name : string) (num : int): instruction list =
-  [ ILabel(name) ; IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP); ISub(Reg RSP, (rsp_offset (num*8))) ]
-  
+  [ ILabel(name) ; IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP); ISub(Reg RSP, (rsp_offset (num*8))) ] 
 
 (* return for callee *)
 let callee_end : (instruction list) =
   [ IMov(Reg RSP, Reg RBP) ; IPop(Reg RBP) ; IRet ]
 
+(* callee instructions *)
 let callee_instrs (name : string) (instrs : instruction list) (num : int) : instruction list =
   (callee_start name num) @ instrs @ callee_end
 
 
-let ccall_reg (num : int) : (instruction list) =
-  match num with
-  | 1 -> [ IMov(Reg RAX, Reg RDI) ]
-  | 2 -> [ IMov(Reg RAX, Reg RSI) ]
-  | 3 -> [ IMov(Reg RAX, Reg RDX) ]
-  | 4 -> [ IMov(Reg RAX, Reg RCX) ]
-  | 5 -> [ IMov(Reg RAX, Reg R8) ]
-  | 6 -> [ IMov(Reg RAX, Reg R9) ]
-  | _ -> [ IMov(Reg RAX, RegOffset(RBP, -num+5)) ] (* arg 7 está en rbp + 16 y de ahi subiendo (bajando¿) *)
-        @ [IPush(Reg RAX)] (* como se movio la pila hay que volver a poner el valor *)
-
-let ctype_error (ctype : ctype) (tag : tag) (num : int) : instruction list =
+let ctype_error (instr : instruction list) (ctype : ctype) (tag : tag) (num : int) : instruction list =
   match ctype with
   | CAny -> []
-  | CInt -> (type_error_check ENum RAX tag num)
-  | CBool -> (type_error_check EBool RAX tag num)
-  | CTuple _ -> (type_error_check ETuple RAX tag num)
+  | CInt -> instr @ (type_error_check ENum RAX tag num)
+  | CBool -> instr @ (type_error_check EBool RAX tag num)
+  | CTuple _ -> instr @ (type_error_check ETuple RAX tag num)
 
-(* c calls type verification *)
-let ccall_list (type_list : ctype list) (tag : int) : instruction list =
-  let _ = callee_gensym true in
-  List.fold_left (fun res i -> res @ 
-    let num = (callee_gensym false) in
-    (ccall_reg num) @ (ctype_error i tag num)) [] type_list
+(* c calls args type verification *)
+let ccall_args (args : ctype list) (tag : tag) : (instruction list) =
+  let rec ccall_args_help (args : ctype list) (count : int) = 
+    match args with
+    | [] -> []
+    | ctype::tail -> 
+      let instr = (match count with
+      | 1 -> [ IMov(Reg RAX, Reg RDI) ]
+      | 2 -> [ IMov(Reg RAX, Reg RSI) ]
+      | 3 -> [ IMov(Reg RAX, Reg RDX) ]
+      | 4 -> [ IMov(Reg RAX, Reg RCX) ]
+      | 5 -> [ IMov(Reg RAX, Reg R8) ]
+      | 6 -> [ IMov(Reg RAX, Reg R9) ]
+      | _ -> [ IMov(Reg RAX, RegOffset(RBP, -count+5)) ; IPush(Reg RAX) ] ) in
+      (* arg 7 está en rbp + 16 y de ahi subiendo, como se movio la pila hay que volver a poner el valor *)
+      (ctype_error instr ctype tag count) @ (ccall_args_help tail (count+1)) in
+    (ccall_args_help args 1)
 
-let ccall_ret (type_ret : ctype) (tag : int) : instruction list =
-  (ctype_error type_ret tag 0) 
-
-let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) (tag : int) : instruction list =
-  callee_start call_name 0 @ (ccall_list type_list tag) @ [ ICall(fun_name) ] @
-  (ccall_ret type_ret tag) @ callee_end
+(* defsys callee instructions *)
+let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) (tag : tag) : instruction list =
+  let instr = (ccall_args type_list tag) @ [ ICall(fun_name) ] @ (ctype_error [] type_ret tag 0) in
+  (callee_instrs call_name instr 0)
   
 
 (* get enviroment from args list to compile function *)  
@@ -194,7 +172,7 @@ let caller_args (instrs : instruction list list) : instruction list =
   let rec caller_args_help (l : instruction list list) (count : int) : instruction list =
     match l with
     | [] -> []
-    | inst::tail ->
+    | instr::tail ->
       let save = (match count with
       | 1 -> [ IMov(Reg RDI, Reg RAX) ]
       | 2 -> [ IMov(Reg RSI, Reg RAX) ]
@@ -203,7 +181,7 @@ let caller_args (instrs : instruction list list) : instruction list =
       | 5 -> [ IMov(Reg R8, Reg RAX) ]
       | 6 -> [ IMov(Reg R9, Reg RAX) ]
       | _ -> [ IPush(Reg RAX) ] ) in
-      (inst @ save @ (caller_args_help tail (count+1))) in
+    instr @ save @ (caller_args_help tail (count+1)) in
   (caller_args_help instrs 1)
 
 let caller_save : instruction list =

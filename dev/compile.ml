@@ -135,12 +135,12 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     let compile_elist (exprs : tag eexpr list) : instruction list list =
       List.fold_left (fun res i -> res @ [ (compile_expr i env fenv nenv) ]) [] exprs in
       (match args_f with
-        | Some n -> if (n == List.length p) then
-          (match name_f with
-            | Some f' -> (caller_instrs [(ICall f')] (compile_elist p)) (* defsys *)
-            | None -> (caller_instrs [ (ICall f)] (compile_elist p)) ) (* deffun *)
-          else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
-        | None -> failwith(sprintf "undefined funtion: %s" f) )
+      | Some n -> if (n == List.length p) then
+        (match name_f with
+        | Some f' -> (caller_instrs [(ICall f')] (compile_elist p)) (* defsys *)
+        | None -> (caller_instrs [(ICall f)] (compile_elist p)) ) (* deffun *)
+        else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
+      | None -> failwith(sprintf "undefined funtion: %s" f) )
   | ETuple(elist, tag) ->
     let (env', reg_offset) = extend_renv (sprintf "temp_%d" tag) env in
     let init_R15 = RegOffset (RBP, reg_offset) in

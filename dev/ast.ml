@@ -56,6 +56,7 @@ type 'a eexpr =
 | ELamApp of 'a eexpr * 'a eexpr list * 'a
 | ELetRec of (string * string list * 'a eexpr) list * 'a eexpr * 'a
 
+(* internal argument types *)
 type etype =
 | EAny
 | ENum
@@ -180,6 +181,7 @@ let tag_program (p : prog) : tag eprog =
 
 let string_of_elist op expr =
   (List.fold_left (fun res i -> res ^ ", " ^ (op i)) "" expr)
+
 
 (* Pretty printing - used by testing framework *)
 let rec string_of_expr(e : expr) : string = 
