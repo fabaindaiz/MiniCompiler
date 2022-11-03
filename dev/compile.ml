@@ -172,18 +172,57 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
   | ELambda (params, body, tag) ->
     let fun_name = sprintf "lambda_%d" tag in
     let end_name = sprintf "end_%d" tag in
+
+    let update_reg (l : string list) (reg : reg) (env : renv) : instruction list =
+      let len = (Int64.of_int (List.length l)) in
+      [ IMovq (RegOffset(reg, 2), Const len) ] @
+      let rec update_reg_help (l : string list) (reg : reg) (env : renv) (count : int) : instruction list =
+        (match l with
+        | [] -> []
+        | id::tail ->
+          (match (List.assoc_opt id env) with
+          | Some arg ->
+            [ IMov (Reg R11, arg) ; IMov (RegOffset(reg, count), Reg R11) ] @
+            (update_reg_help tail reg env (count+1))
+          | None -> failwith (sprintf "unbound variable %s in renv" id) ) ) in
+      (update_reg_help l reg env 3) in
     
-    let env' = (env_from_args params) @ env in (* TODO: make args dont step on each other (?) *)
-    let instrs = (compile_expr body env' fenv nenv) in
+    let unpack_reg (l : string list) : instruction list =
+      let rec unpack_reg_help (l : string list) (count1 : int) (count2 : int): instruction list =
+        (match l with
+        | [] -> []
+        | _::tail ->
+            [ IMov (Reg R11, RegOffset(RAX, count1)) ; IMov (RegOffset(RBP, count2), Reg R11) ] @
+            (unpack_reg_help tail (count1 +1) (count1 -1))  ) in
+      (unpack_reg_help l 3 (-1)) in
+    
+    let update_env (l : string list) (env : renv) : renv =
+      let rec update_env_help (l : string list) (env : renv) (count : int) : renv =
+        (match l with
+        | [] -> env
+        | id::tail ->
+          let env' = (List.remove_assoc id env) in 
+          (update_env_help tail ((id, RegOffset(RBP, count))::env') (count-1)) ) in
+      (update_env_help l env (-1)) in
+    
+    let free_vars = (get_free_vars e []) in
+    let free_vars_size = List.length free_vars in
+    let env' = (env_from_args params) @ env in
+    
+    let update = (update_reg free_vars R15 env') in
+    let unpack = (unpack_reg free_vars) in
+    let env' = (update_env free_vars env') in
+
+    let instrs = unpack @ (compile_expr body env' fenv nenv) in
     let arg_len = (Int64.of_int (List.length params)) in
-    
+
     (* compile function *)
     [ IJmp (end_name) ] @ (callee_instrs fun_name instrs (num_expr e)) @ [ ILabel (end_name) ] @
     
     [ IMov (Reg RAX, Reg R15) ; IAdd (Reg RAX, Const closure_tag) ] @ (* create lambda tuple *)
     [ IMovq (RegOffset(R15, 0), Const arg_len) ] @ (* set arg size at pos 0 *)
-    [ IMovq (RegOffset(R15, 8), Any fun_name) ; IAdd (Reg R15, Const 16L) ] (* set func label at pos 1 *)
-    (* TODO: define closure *)
+    [ IMovq (RegOffset(R15, 1), Any fun_name) ] @
+    update @ [ IAdd (Reg R15, Const (Int64.of_int ((free_vars_size + 3) * 8))) ] (* set func label at pos 1 *)
     
   | ELamApp (fe, ael, tag) ->
     let arity = (Int64.of_int (List.length ael)) in
@@ -193,7 +232,7 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     (* closure error checks instructions and call second val of func tuple *)
     let call_lambda = [ IMov (Reg RAX, RegOffset(RBP, reg_offset)) ] @ (type_error_check EClosure RAX tag 1) @
     [ ISub (Reg RAX, Const closure_tag) ; IMov (Reg R11, RegOffset (RAX, 0)) ] @
-    (error_arity_mismatch (Reg R11) (Const arity) tag 2) @ [ ICallArg (RegOffset (RAX, 8)) ] in
+    (error_arity_mismatch (Reg R11) (Const arity) tag 2) @ [ ICallArg (RegOffset (RAX, 1)) ] in
 
     (compile_expr fe env fenv nenv) @ [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
     (caller_instrs call_lambda elist)

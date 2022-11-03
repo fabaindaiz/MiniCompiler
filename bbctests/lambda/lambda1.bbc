@@ -1,4 +1,4 @@
-NAME: lambda1
+NAME: lambda 1
 DESCRIPTION: evaluates a function declaration after saving vars in stack
 SRC:
 (
