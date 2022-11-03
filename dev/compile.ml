@@ -108,7 +108,7 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     [ IMov (Reg RAX, Const (val_rep)) ]
   | EId (s, _) ->
     (match List.assoc_opt s env with
-    | Some arg -> [ IMov (Reg RAX, arg)] (* mueve valor desde la pila a RAX *)
+    | Some arg -> [ IMov (Reg RAX, arg) ] (* mueve valor desde la pila a RAX *)
     | None -> failwith (sprintf "unbound variable %s in renv" s) )
   | EPrim1 (op, e, tag) -> 
     (compile_prim1 compile_expr op e tag env fenv nenv)
@@ -197,7 +197,6 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
 
     (compile_expr fe env fenv nenv) @ [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
     (caller_instrs call_lambda elist)
-    (* TODO: check arity *)
 
   | ELetRec (recs, body, _) -> failwith ("TODO rec")
 

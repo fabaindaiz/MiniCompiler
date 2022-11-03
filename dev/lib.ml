@@ -1,5 +1,6 @@
 (** Lib **)
 open Printf
+open Set
 open Asm
 open Ast
 
@@ -43,7 +44,7 @@ let rec num_expr (expr : tag eexpr) : int =
   | ELet (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
   | EIf (c, e1, e2, _) -> (max (num_expr c) (max (num_expr e1) (num_expr e2)))
   | EApp (_, elist, _) -> (num_expr_list elist)
-  | ESet (c, e1, e2, _) -> 2 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
+  | ESet (t, n, v, _) -> 2 + (max (num_expr t) (max (num_expr n) (num_expr v)))
   | ELambda (par, body, _) -> (num_expr_args (List.length par)) + (num_expr body)
   | ELamApp (fe, ael, _) -> 1 + max (num_expr_list ael) (num_expr fe)
   | ELetRec (recs, body, _) -> failwith ("TODO")
@@ -109,6 +110,43 @@ let error_tuple_bad_index (reg1 : arg) (reg2 : arg) (lim : arg) (tag : tag) : in
 let error_arity_mismatch (reg1 : arg) (reg2 : arg) (tag : tag) (num : int) : instruction list =
   let label = sprintf "test_%d_%d" tag num in
   [ ICmp (reg1, reg2) ; IJz(label) ] @ (error2_asm err_arity_mismatch reg1 reg2 label)
+
+
+let get_free_vars (e : tag eexpr) (l : string list) : string list =
+  let rec get_free_vars_help (e : tag eexpr) (l : string list) : string list =
+    match e with
+    | ENum (_, _) -> []
+    | EBool (_, _) -> []
+    | ETuple (elist, _) -> (get_free_vars_help_list elist l)
+    | EId (s, _) ->
+      (match List.mem s l with
+      | true -> []
+      | false -> [s] )
+    | EPrim1 (_, e1, _) -> (get_free_vars_help e1 l)
+    | EPrim2 (_, e1, e2, _) -> (get_free_vars_help e1 l) @ (get_free_vars_help e2 l)
+    | ELet (id, e, body, _) ->
+      let l' = l @ [id] in
+      (get_free_vars_help e l) @ (get_free_vars_help body l')
+    | EIf (c, t, e, _) -> (get_free_vars_help c l) @ (get_free_vars_help t l) @ (get_free_vars_help e l)
+    | EApp (_, p, _) -> (get_free_vars_help_list p l)
+    | ESet (t, n, v, _) -> (get_free_vars_help t l) @ (get_free_vars_help n l) @ (get_free_vars_help v l)
+    | ELambda (par, body, _) ->
+      let l' = l @ (get_vars_list par l) in
+      (get_free_vars_help body l')
+    | ELamApp (fe, ael, _) -> (get_free_vars_help fe l) @ (get_free_vars_help_list ael l)
+    | ELetRec (recs, body, _) -> failwith ("TODO")
+    and get_free_vars_help_list (elist: tag eexpr list) (l : string list) : string list =
+      match elist with
+      | [] -> []
+      | e::tail -> (get_free_vars_help e l) @ (get_free_vars_help_list tail l)
+    and get_vars_list (slist: string list) (l : string list) : string list =
+      match slist with
+      | [] -> []
+      | s::tail -> [s] @ (get_vars_list tail l) in
+  let remove_duplicates (xs : string list) : string list = 
+    let cons_uniq (xs : string list) (x : string) : string list = if List.mem x xs then xs else x :: xs in
+    List.rev (List.fold_left cons_uniq [] xs) in
+  (remove_duplicates (get_free_vars_help e l))
 
 
 let rsp_mask = 0xfffffff0
