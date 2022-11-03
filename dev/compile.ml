@@ -129,15 +129,14 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
   | EApp (f, p, _) -> 
     let args_f = (List.assoc_opt f fenv) in
     let name_f = (List.assoc_opt f nenv) in
-    let compile_elist (exprs : tag eexpr list) : instruction list list =
-      List.fold_left (fun res i -> res @ [ (compile_expr i env fenv nenv) ]) [] exprs in
-      (match args_f with
-      | Some n -> if (n == List.length p) then
-        (match name_f with
-        | Some f' -> (caller_instrs [(ICall f')] (compile_elist p)) (* defsys *)
-        | None -> (caller_instrs [(ICall f)] (compile_elist p)) ) (* deffun *)
-        else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
-      | None -> failwith(sprintf "undefined funtion: %s" f) )
+    (match args_f with
+    | Some n -> if (n == List.length p) then
+      let elist = (compile_elist compile_expr p env fenv nenv) in
+      (match name_f with
+      | Some f' -> (caller_instrs [(ICall f')] elist) (* defsys *)
+      | None -> (caller_instrs [(ICall f)] elist) ) (* deffun *)
+      else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
+    | None -> failwith(sprintf "undefined funtion: %s" f) )
   | ETuple(elist, tag) ->
     let (env', reg_offset) = extend_renv (sprintf "temp_%d" tag) env in
     let init_R15 = RegOffset (RBP, reg_offset) in
@@ -174,28 +173,26 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     let fun_name = sprintf "lambda_%d" tag in
     let end_name = sprintf "end_%d" tag in
     
-    let env' = env @ (env_from_args params) in (* TODO: make args dont step on each other (?) *)
-    let instrs = (compile_expr (body) env' fenv nenv) in
+    let env' = (env_from_args params) @ env in (* TODO: make args dont step on each other (?) *)
+    let instrs = (compile_expr body env' fenv nenv) in
     let arg_len = (List.length params) in
     
     (* compile function *)
-    [ IJmp (end_name) ] @ (callee_instrs fun_name instrs (num_expr e + arg_len)) @ [ ILabel (end_name) ] @
+    [ IJmp (end_name) ] @ (callee_instrs fun_name instrs (num_expr e)) @ [ ILabel (end_name) ] @
     
     [ IMov (Reg RAX, Reg R15) ; IAdd (Reg RAX, Const closure_tag) ] @ (* create lambda tuple *)
     [ IMovq (RegOffset(R15, 0), Const (Int64.of_int arg_len)) ] @ (* set arg size at pos 0 *)
-    [ IMovq (RegOffset(R15, -1), Any fun_name) ; IAdd (Reg R15, Const 16L) ](* set func label at pos 1 *)
+    [ IMovq (RegOffset(R15, 8), Any fun_name) ; IAdd (Reg R15, Const 16L) ](* set func label at pos 1 *)
     (* TODO: define closure *)
     
   | ELamApp (fe, ael, tag) ->
     let (env', reg_offset) = extend_renv (sprintf "temp_%d_1" tag) env in
-    let call_lambda = [ IMov (Reg R10, RegOffset(RBP, reg_offset)) ] @ (type_error_check EClosure RAX tag 1) @
-    [ ISub (Reg R10, Const closure_tag) ; ICallArg (RegOffset(R10, -1)) ] in (* call second val of func tuple *)
-    
-    let compile_elist (exprs : tag eexpr list) : instruction list list =
-      List.fold_left (fun res i -> res @ [ (compile_expr i env' fenv nenv) ]) [] exprs in
-      
-    compile_expr fe env fenv nenv @ [IMov (RegOffset (RBP, reg_offset), Reg RAX)] @
-    (caller_instrs call_lambda (compile_elist ael))
+    let call_lambda = [ IMov (Reg R10, RegOffset(RBP, reg_offset)) ] @ (type_error_check EClosure R10 tag 1) @
+    [ ISub (Reg R10, Const closure_tag) ; ICallArg (RegOffset(R10, 8)) ] in (* call second val of func tuple *)
+    let elist = (compile_elist compile_expr ael env' fenv nenv) in
+
+    (compile_expr fe env fenv nenv) @ [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
+    (caller_instrs call_lambda elist)
     (* TODO: check arity *)
 
   | ELetRec (recs, body, _) -> failwith ("TODO rec")

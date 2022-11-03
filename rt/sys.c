@@ -10,6 +10,7 @@ extern VAL our_code_starts_here(uint64_t* HEAP) asm("our_code_starts_here");
 
 const uint64_t BOOL_TAG   = 0x0000000000000001;
 const uint64_t TUPLE_TAG   = 0x000000000000005;
+const uint64_t CLOSURE_TAG   = 0x000000000000007;
 const VAL BOOL_TRUE  = 0x8000000000000001; // These must be the same values
 const VAL BOOL_FALSE = 0x0000000000000001; // as chosen in compile.ml
 
@@ -27,6 +28,11 @@ void get_value(char* buffer, VAL val) {
       buffer+=strlen(buf) + 1;
     }
     sprintf(buffer, ")");
+  } else if ((val & TUPLE_TAG) == CLOSURE_TAG) { // TODO closure print
+    VAL* point = (VAL*)(val - CLOSURE_TAG);
+    sprintf(buffer, "<clos:");
+    buffer+=6;
+    sprintf(buffer, ">");
   } else if ((val & BOOL_TAG) == 0) { // val is even ==> number
     sprintf(buffer, "%ld", ((int64_t)(val)) / 2); // shift bits right to remove tag
   } else if (val == BOOL_TRUE) {

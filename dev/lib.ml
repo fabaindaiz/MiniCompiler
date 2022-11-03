@@ -31,21 +31,21 @@ let extend_renv_reg (x : string * arg) (env : renv) : (renv) =
   ((id, reg) :: env)
 
 
-(* calculate an aprox number of used argument *)
+(* calculate an aprox number of used stack spaces *)
 let rec num_expr (expr : tag eexpr) : int =
   match expr with
-  | ENum (_, _) -> 1
-  | EBool (_, _) -> 1
-  | ETuple (elist, _) -> num_expr_list elist
-  | EId (_, _) -> 1
-  | EPrim1 (_, e1, _) -> 1 + (num_expr e1)
-  | EPrim2 (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
+  | ENum (_, _) -> 0
+  | EBool (_, _) -> 0
+  | ETuple (elist, _) -> 1 + (num_expr_list elist)
+  | EId (_, _) -> 0
+  | EPrim1 (_, e1, _) -> (num_expr e1)
+  | EPrim2 (_, e1, e2, _) -> 2 + (max (num_expr e1) (num_expr e2))
   | ELet (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
-  | EIf (c, e1, e2, _) -> 1 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
-  | EApp (_, elist, _) -> num_expr_list elist
+  | EIf (c, e1, e2, _) -> (max (num_expr c) (max (num_expr e1) (num_expr e2)))
+  | EApp (_, elist, _) -> (num_expr_list elist)
   | ESet (c, e1, e2, _) -> 2 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
-  | ELambda (_, _, _) -> 0
-  | ELamApp (fe, ael, _) -> max (num_expr_list ael) (num_expr fe)
+  | ELambda (_, body, _) -> (num_expr body)
+  | ELamApp (fe, ael, _) -> 1 + max (num_expr_list ael) (num_expr fe)
   | ELetRec (recs, body, _) -> failwith ("TODO")
   and num_expr_list (elist: tag eexpr list) : int =
     match elist with
@@ -73,7 +73,7 @@ let type_error_check (t : etype) (reg : reg) (tag : tag) (num : int): instructio
   | EAny -> []
   | ENum -> (* 0x...0 & 0x1 = 0x0 *)
     [ ITest(Reg reg, Const 1L) ; IJz(label) ] @
-    (error_asm err_not_number RAX label)
+    (error_asm err_not_number reg label)
   | EBool -> (*  (0x...1 - 0x1) & 0x111 = 0x0 *)
     [ IMov(Reg R11, Reg reg) ; ISub(Reg R11, Const bool_tag) ] @
     [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
@@ -153,6 +153,10 @@ let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype li
   let instr = (ccall_args type_list tag) @ [ ICall(fun_name) ] @ (ctype_error [] type_ret tag 0) in
   (callee_instrs call_name instr 0)
   
+
+(* compile a tag expr list *)
+let compile_elist (compile_expr) (exprs : tag eexpr list) (env : renv) (fenv : fenv) (nenv : nenv) : instruction list list =
+  List.fold_left (fun res i -> res @ [ (compile_expr i env fenv nenv) ]) [] exprs
 
 (* get enviroment from args list to compile function *)  
 let env_from_args (args : string list) : renv =

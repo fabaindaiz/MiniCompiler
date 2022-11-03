@@ -146,7 +146,7 @@ let rec tag_expr_help (e : expr) (cur : tag) : (tag eexpr * tag) =
     let next_tag2 = ref next_tag1 in
     let tag_e = List.fold_left (fun res i -> res @
       let (tag_i, temp_tag) = (tag_expr_help i !next_tag2) in
-        next_tag2 := temp_tag ;  [ tag_i ] ) [] ael in
+      next_tag2 := temp_tag ;  [ tag_i ] ) [] ael in
     (ELamApp (tag_fe, tag_e, cur), !next_tag2)
   | LetRec (recs, body) -> failwith ("TODO")
 
