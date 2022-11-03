@@ -19,7 +19,7 @@ let empty_env : renv = []
 let rec get_offset (env : renv) : int =
   match env with
   | [] -> -1
-  | (_, RegOffset(_, _))::tail -> -1 + get_offset tail (* cuenta solo registros que apuntan a la pila *)
+  | (_, RegOffset(RBP, _))::tail -> -1 + get_offset tail (* cuenta solo registros que apuntan a la pila *)
   | _::tail -> get_offset tail
 
 (* extiende el ambiente con una variable del usuario *)
@@ -72,7 +72,7 @@ let error_asm (error : int64) (reg : reg) (label : string) : instruction list =
 
 let type_error_check (t : etype) (reg : reg) (tag : tag) (num : int): instruction list =
   let label = sprintf "test_%d_%d" tag num in
-  [ ICom (label) ] @
+  [ ICom (sprintf "type %s" label) ] @
   match t with
   | EAny -> []
   | ENum -> (* 0x...0 & 0x1 = 0x0 *)
@@ -103,18 +103,64 @@ let error2_asm (error : int64) (reg1 : arg) (reg2 : arg) (label : string) : inst
 let error_tuple_bad_index (reg1 : arg) (reg2 : arg) (lim : arg) (tag : tag) : instruction list =
   let low_label = sprintf "test_%d_1" tag in
   let high_label = sprintf "test_%d_2" tag in
-  [ ICom (low_label) ] @
+  [ ICom (sprintf "indec %s" low_label) ] @
   [ ICmp (reg1, Const 0L) ; IJge(low_label) ; ISal (reg1, Const 1L) ] @
   (error2_asm err_bad_index_low reg1 reg2 low_label) @
-  [ ICom (high_label) ] @
+  [ ICom (sprintf "index %s" high_label) ] @
   [ ICmp (reg1, lim) ; IJl(high_label) ; ISal (reg1, Const 1L) ] @
   (error2_asm err_bad_index_high reg1 reg2 high_label)
 
 let error_arity_mismatch (reg1 : arg) (reg2 : arg) (tag : tag) (num : int) : instruction list =
   let label = sprintf "test_%d_%d" tag num in
-  [ ICom (label) ] @ [ ICmp (reg1, reg2) ; IJz(label) ] @ (error2_asm err_arity_mismatch reg1 reg2 label)
+  [ ICom (sprintf "arity %s" label) ] @
+  [ ICmp (reg1, reg2) ; IJz(label) ] @ (error2_asm err_arity_mismatch reg1 reg2 label)
 
 
+(* compile a tag expr list *)
+let compile_elist (compile_expr) (exprs : tag eexpr list) (env : renv) (fenv : fenv) (nenv : nenv) : instruction list list =
+  List.fold_left (fun res i -> res @ [ (compile_expr i env fenv nenv) ]) [] exprs
+
+
+(* pack the closure arguments *)
+let closure_pack (l : string list) (reg : reg) (env : renv) : instruction list =
+  let len = (Int64.of_int (List.length l)) in
+  [ IMovq (RegOffset(reg, 2), Const len) ] @
+  let rec update_reg_help (l : string list) (reg : reg) (env : renv) (count : int) : instruction list =
+    (match l with
+    | [] -> []
+    | id::tail ->
+      (match (List.assoc_opt id env) with
+      | Some arg ->
+        [ IMov (Reg R11, arg) ; IMov (RegOffset(reg, count), Reg R11) ] @
+        (update_reg_help tail reg env (count+1))
+      | None -> failwith (sprintf "unbound variable %s in renv" id) ) ) in
+  (update_reg_help l reg env 3)
+
+(* unpack the closure arguments *)
+let closure_unpack (l : string list) : instruction list =
+  let len = (Int64.of_int ((List.length l) * 8)) in
+  [ ICom ("unpack closure") ] @ [ ISub (Reg RSP, Const len) ] @
+  [ IMov (Reg R11, RegOffset(RBP, 2)) ] @ [ ISub (Reg R11, Const closure_tag) ] @
+  let rec unpack_reg_help (l : string list) (count1 : int) (count2 : int): instruction list =
+    (match l with
+    | [] -> []
+    | _::tail ->
+        [ IMov (Reg RAX, RegOffset(R11, count1)) ; IMov (RegOffset(RBP, count2), Reg RAX) ] @
+        (unpack_reg_help tail (count1 +1) (count2 -1))  ) in
+  (unpack_reg_help l 3 (-1))
+
+(* update lambda enviroment with closure arguments *)
+let closure_env (l : string list) (env : renv) : renv =
+  let rec update_env_help (l : string list) (env : renv) (count : int) : renv =
+    (match l with
+    | [] -> env
+    | id::tail ->
+      let env' = (List.remove_assoc id env) in 
+      (update_env_help tail ((id, RegOffset(RBP, count))::env') (count-1)) ) in
+  (update_env_help l env (-1))
+
+
+(* get a list of free vars *)
 let get_free_vars (e : tag eexpr) (l : string list) : string list =
   let rec get_free_vars_help (e : tag eexpr) (l : string list) : string list =
     match e with
@@ -152,22 +198,18 @@ let get_free_vars (e : tag eexpr) (l : string list) : string list =
   (remove_duplicates (get_free_vars_help e l))
 
 
-let rsp_mask = 0xfffffff0
-let rsp_offset (num : int) : arg =
-  Const (Int64.of_int ((num + 8) land rsp_mask))
-
 (* prelude for callee *)
 let callee_start (name : string) (num : int): instruction list =
-  [ ILabel(name) ; IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP); ISub(Reg RSP, (rsp_offset (num*8))) ] 
+  [ ILabel(name) ] @ [ ICom("prologue") ] @ [ IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP) ] @
+  [ ISub(Reg RSP, Const(Int64.of_int ((num + 1) * 8))) ; ICom("function body") ]
 
 (* return for callee *)
 let callee_end : (instruction list) =
-  [ IMov(Reg RSP, Reg RBP) ; IPop(Reg RBP) ; IRet ]
+  [ ICom ("epilogue") ; IMov(Reg RSP, Reg RBP) ; IPop(Reg RBP) ; IRet ]
 
 (* callee instructions *)
 let callee_instrs (name : string) (instrs : instruction list) (num : int) : instruction list =
-  (callee_start name num) @ [ ICom (sprintf "start %s" name) ] @ instrs @
-  [ ICom (sprintf "end %s" name) ] @ callee_end
+  (callee_start name num) @ instrs @ callee_end
 
 
 let ctype_error (instr : instruction list) (ctype : ctype) (tag : tag) (num : int) : instruction list =
@@ -199,11 +241,7 @@ let ccall_args (args : ctype list) (tag : tag) : (instruction list) =
 let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) (tag : tag) : instruction list =
   let instr = (ccall_args type_list tag) @ [ ICall(fun_name) ] @ (ctype_error [] type_ret tag 0) in
   (callee_instrs call_name instr 0)
-  
 
-(* compile a tag expr list *)
-let compile_elist (compile_expr) (exprs : tag eexpr list) (env : renv) (fenv : fenv) (nenv : nenv) : instruction list list =
-  List.fold_left (fun res i -> res @ [ (compile_expr i env fenv nenv) ]) [] exprs
 
 (* get enviroment from args list to compile function *)  
 let env_from_args (args : string list) : renv =
@@ -219,7 +257,7 @@ let env_from_args (args : string list) : renv =
       | 6 -> extend_renv_reg (id, (Reg R9)) 
       | _ -> extend_renv_reg (id, (RegOffset (RBP, count-5))) )
       (env_arg_help tail (count+1)) in
-  env_arg_help args 1 
+  (env_arg_help args 1)
 
   
 (* generate an instruction for each argument *)
@@ -237,16 +275,15 @@ let caller_args (instrs : instruction list list) : instruction list =
       | 6 -> [ IMov(Reg R9, Reg RAX) ]
       | _ -> [ IPush(Reg RAX) ] ) in
     instr @ save @ (caller_args_help tail (count+1)) in
-  (caller_args_help instrs 1)
+  [ ICom("load args") ] @ (caller_args_help instrs 1)
 
 let caller_save : instruction list =
-  [ IPush(Reg R9) ; IPush(Reg R8) ; IPush(Reg RCX) ; IPush(Reg RDX) ; IPush(Reg RSI) ; IPush(Reg RDI) ]
+  [ ICom("prologue") ] @ [ IPush(Reg R9) ; IPush(Reg R8) ; IPush(Reg RCX) ; IPush(Reg RDX) ; IPush(Reg RSI) ; IPush(Reg RDI) ]
 
-let caller_restore (arg_num : int) : instruction list = 
-  (if arg_num >= 7 then [ IAdd(Reg RSP, Const (Int64.of_int ((arg_num - 6) * 8))) ] else []) @
-  [ IPop(Reg RDI) ; IPop(Reg RSI) ; IPop(Reg RDX) ; IPop(Reg RCX) ; IPop(Reg R8) ; IPop(Reg R9) ]
+let caller_restore (num : int) : instruction list = 
+  [ ICom("epilogue") ] @ (if num >= 7 then [ IAdd(Reg RSP, Const (Int64.of_int ((num - 6) * 8))) ] else []) @
+  [ IPop(Reg RDI) ; IPop(Reg RSI) ; IPop(Reg RDX) ; IPop(Reg RCX) ; IPop(Reg R8) ; IPop(Reg R9) ] @ [ ICom("end call") ]
 
 (* generate instruction for call *)
 let caller_instrs (calli : instruction list) (args : instruction list list) : instruction list =
-  let arg_num = List.length args in
-  caller_save @ (caller_args args) @ calli @ (caller_restore arg_num) (* pass the arguments and call the function *)
+  caller_save @ (caller_args args) @ [ ICom("call function") ] @ calli @ (caller_restore (List.length args))
