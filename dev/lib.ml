@@ -17,9 +17,9 @@ let empty_env : renv = []
 (* Obtiene el offset de la variable actual*)
 let rec get_offset (env : renv) : int =
   match env with
-  | (_, RegOffset(_, _))::tail -> 1 + get_offset tail (* cuenta solo registros que apuntan a la pila *)
+  | [] -> -1
+  | (_, RegOffset(_, _))::tail -> -1 + get_offset tail (* cuenta solo registros que apuntan a la pila *)
   | _::tail -> get_offset tail
-  | _ -> 1
 
 (* extiende el ambiente con una variable del usuario *)
 let extend_renv (x : string) (env : renv) : (renv * int) =
@@ -44,9 +44,11 @@ let rec num_expr (expr : tag eexpr) : int =
   | EIf (c, e1, e2, _) -> (max (num_expr c) (max (num_expr e1) (num_expr e2)))
   | EApp (_, elist, _) -> (num_expr_list elist)
   | ESet (c, e1, e2, _) -> 2 + (max (num_expr c) (max (num_expr e1) (num_expr e2)))
-  | ELambda (_, body, _) -> (num_expr body)
+  | ELambda (par, body, _) -> (num_expr_args (List.length par)) + (num_expr body)
   | ELamApp (fe, ael, _) -> 1 + max (num_expr_list ael) (num_expr fe)
   | ELetRec (recs, body, _) -> failwith ("TODO")
+  and num_expr_args (arg_num : int) : int =
+    if arg_num >= 7 then arg_num - 6 else 0
   and num_expr_list (elist: tag eexpr list) : int =
     match elist with
     | [] -> 0
@@ -104,11 +106,14 @@ let error_tuple_bad_index (reg1 : arg) (reg2 : arg) (lim : arg) (tag : tag) : in
   [ ICmp (reg1, lim) ; IJl(high_label) ; ISal (reg1, Const 1L) ] @
   (error2_asm err_bad_index_high reg1 reg2 high_label)
 
+let error_arity_mismatch (reg1 : arg) (reg2 : arg) (tag : tag) (num : int) : instruction list =
+  let label = sprintf "test_%d_%d" tag num in
+  [ ICmp (reg1, reg2) ; IJz(label) ] @ (error2_asm err_arity_mismatch reg1 reg2 label)
+
 
 let rsp_mask = 0xfffffff0
 let rsp_offset (num : int) : arg =
   Const (Int64.of_int ((num + 8) land rsp_mask))
-
 
 (* prelude for callee *)
 let callee_start (name : string) (num : int): instruction list =
@@ -143,7 +148,7 @@ let ccall_args (args : ctype list) (tag : tag) : (instruction list) =
       | 4 -> [ IMov(Reg RAX, Reg RCX) ]
       | 5 -> [ IMov(Reg RAX, Reg R8) ]
       | 6 -> [ IMov(Reg RAX, Reg R9) ]
-      | _ -> [ IMov(Reg RAX, RegOffset(RBP, -count+5)) ; IPush(Reg RAX) ] ) in
+      | _ -> [ IMov(Reg RAX, RegOffset(RBP, count-5)) ; IPush(Reg RAX) ] ) in
       (* arg 7 está en rbp + 16 y de ahi subiendo, como se movio la pila hay que volver a poner el valor *)
       (ctype_error instr ctype tag count) @ (ccall_args_help tail (count+1)) in
     (ccall_args_help args 1)
@@ -170,7 +175,7 @@ let env_from_args (args : string list) : renv =
       | 4 -> extend_renv_reg (id, (Reg RCX)) 
       | 5 -> extend_renv_reg (id, (Reg R8)) 
       | 6 -> extend_renv_reg (id, (Reg R9)) 
-      | _ -> extend_renv_reg (id, (RegOffset (RBP, -count+5))) )
+      | _ -> extend_renv_reg (id, (RegOffset (RBP, count-5))) )
       (env_arg_help tail (count+1)) in
   env_arg_help args 1 
 

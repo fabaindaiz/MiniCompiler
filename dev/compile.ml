@@ -27,7 +27,7 @@ let check_index_in_bounds (compile_expr) (tuple : tag eexpr) (index : tag eexpr)
 
   (compile_expr index env' fenv nenv) @ (type_error_check ENum RAX tag 4) @ (* compila índice *)
   [ IMov (Reg utuple_reg, tuple_arg); ISub (Reg R10, Const tuple_tag) ] @ (* save untagged pointer in passed reg*)
-  [ IMov (Reg R11, RegOffset(utuple_reg, 0)) ] @ (* guarda largo de tupla en R11*)
+  [ IMov (Reg R11, RegOffset (utuple_reg, 0)) ] @ (* guarda largo de tupla en R11*)
 
   (* make sure the index is non-negative and is within the size of the tuple *)
   [ ISar (Reg RAX, Const 1L) ] @ (error_tuple_bad_index (Reg RAX) tuple_arg (Reg R11) tag)
@@ -148,13 +148,13 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
       | e :: tail ->
         (compile_expr e env' fenv nenv) @ (* Compila el valor *)
         [IMov (Reg R11, init_R15)] @
-        [IMov (RegOffset(R11, count), Reg RAX)] @ (* Lo pone en el heap *)
-        (compile_tuple tail (count - 1)) (* Hace lo mismo con el resto *) in
+        [IMov (RegOffset (R11, count), Reg RAX)] @ (* Lo pone en el heap *)
+        (compile_tuple tail (count + 1)) (* Hace lo mismo con el resto *) in
       [ IMov (init_R15, Reg R15) ] @ (* moves heap pointer to stack *)
       [ IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] @ (* offsetea puntero de heap*)
       [ IMov (Reg R11, init_R15) ] @
-      [ IMovq (RegOffset(R11, 0), Const (Int64.of_int tuple_size))] @ (* Ubica el numero de elementos *)
-      (compile_tuple elist (-1)) @ (* Compila la tupla *)
+      [ IMovq (RegOffset (R11, 0), Const (Int64.of_int tuple_size))] @ (* Ubica el numero de elementos *)
+      (compile_tuple elist 1) @ (* Compila la tupla *)
       [ IMov (Reg RAX, init_R15) ] @ (* coloca direccion de tupla en RAX*)
       [ IAdd (Reg RAX, Const tuple_tag) ] (* taggea valor *)
   | ESet (t, n, v, tag) -> 
@@ -175,21 +175,25 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     
     let env' = (env_from_args params) @ env in (* TODO: make args dont step on each other (?) *)
     let instrs = (compile_expr body env' fenv nenv) in
-    let arg_len = (List.length params) in
+    let arg_len = (Int64.of_int (List.length params)) in
     
     (* compile function *)
     [ IJmp (end_name) ] @ (callee_instrs fun_name instrs (num_expr e)) @ [ ILabel (end_name) ] @
     
     [ IMov (Reg RAX, Reg R15) ; IAdd (Reg RAX, Const closure_tag) ] @ (* create lambda tuple *)
-    [ IMovq (RegOffset(R15, 0), Const (Int64.of_int arg_len)) ] @ (* set arg size at pos 0 *)
-    [ IMovq (RegOffset(R15, 8), Any fun_name) ; IAdd (Reg R15, Const 16L) ](* set func label at pos 1 *)
+    [ IMovq (RegOffset(R15, 0), Const arg_len) ] @ (* set arg size at pos 0 *)
+    [ IMovq (RegOffset(R15, 8), Any fun_name) ; IAdd (Reg R15, Const 16L) ] (* set func label at pos 1 *)
     (* TODO: define closure *)
     
   | ELamApp (fe, ael, tag) ->
+    let arity = (Int64.of_int (List.length ael)) in
     let (env', reg_offset) = extend_renv (sprintf "temp_%d_1" tag) env in
-    let call_lambda = [ IMov (Reg R10, RegOffset(RBP, reg_offset)) ] @ (type_error_check EClosure R10 tag 1) @
-    [ ISub (Reg R10, Const closure_tag) ; ICallArg (RegOffset(R10, 8)) ] in (* call second val of func tuple *)
     let elist = (compile_elist compile_expr ael env' fenv nenv) in
+    
+    (* closure error checks instructions and call second val of func tuple *)
+    let call_lambda = [ IMov (Reg RAX, RegOffset(RBP, reg_offset)) ] @ (type_error_check EClosure RAX tag 1) @
+    [ ISub (Reg RAX, Const closure_tag) ; IMov (Reg R11, RegOffset (RAX, 0)) ] @
+    (error_arity_mismatch (Reg R11) (Const arity) tag 2) @ [ ICallArg (RegOffset (RAX, 8)) ] in
 
     (compile_expr fe env fenv nenv) @ [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
     (caller_instrs call_lambda elist)

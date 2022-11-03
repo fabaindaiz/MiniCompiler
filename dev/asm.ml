@@ -81,7 +81,7 @@ let pp_arg (arg : arg) : string =
   match arg with
   | Const n -> sprintf "%#Lx" n
   | Reg r -> pp_reg r
-  | RegOffset (a1, a2) -> sprintf "[%s - %d]" (pp_reg a1) (8  * a2)
+  | RegOffset (a1, a2) -> sprintf "[%s + %d]" (pp_reg a1) (8  * a2)
   | HeapOffset (a1, a2) -> sprintf "[%s + %s]" (pp_reg a1) (pp_reg a2)
   | Any s -> s
 
