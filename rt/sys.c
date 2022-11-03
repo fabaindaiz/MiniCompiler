@@ -15,7 +15,7 @@ const VAL BOOL_TRUE  = 0x8000000000000001; // These must be the same values
 const VAL BOOL_FALSE = 0x0000000000000001; // as chosen in compile.ml
 
 void get_value(char* buffer, VAL val) {
-  if ((val & TUPLE_TAG) == TUPLE_TAG) { // val ends in 3 ==> tuple
+  if ((val & CLOSURE_TAG) == TUPLE_TAG) { // val ends in 3 ==> tuple
     VAL* point = (VAL*)(val - TUPLE_TAG);
     int64_t end = *point;
     sprintf(buffer, "(tup");
@@ -28,10 +28,12 @@ void get_value(char* buffer, VAL val) {
       buffer+=strlen(buf) + 1;
     }
     sprintf(buffer, ")");
-  } else if ((val & TUPLE_TAG) == CLOSURE_TAG) { // TODO closure print
+  } else if ((val & CLOSURE_TAG) == CLOSURE_TAG) { // TODO closure print
     VAL* point = (VAL*)(val - CLOSURE_TAG);
     sprintf(buffer, "<clos:");
     buffer+=6;
+    sprintf(buffer, "%ld", ((int64_t)(point[0])));
+    buffer+=1;
     sprintf(buffer, ">");
   } else if ((val & BOOL_TAG) == 0) { // val is even ==> number
     sprintf(buffer, "%ld", ((int64_t)(val)) / 2); // shift bits right to remove tag

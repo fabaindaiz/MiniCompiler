@@ -45,6 +45,7 @@ type instruction =
 | ITest of arg * arg
 | IPush of arg
 | IPop of arg
+| ICom of string (* Comment *)
 | ILabel of string
 | ICall of string
 | ICallArg of arg
@@ -106,6 +107,7 @@ let pp_instr (instr : instruction) : string =
   | ITest (a1, a2) -> sprintf "  test %s, %s" (pp_arg a1) (pp_arg a2)
   | IPush (a1) -> sprintf "  push %s" (pp_arg a1)
   | IPop (a1) -> sprintf "  pop %s" (pp_arg a1)
+  | ICom (s) -> sprintf "  ;; %s" s
   | ILabel (s) -> sprintf "%s:" s
   | ICall (s) -> sprintf "  call %s" s
   | ICallArg (a) -> sprintf "  call %s" (pp_arg a)

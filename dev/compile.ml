@@ -188,12 +188,15 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
       (update_reg_help l reg env 3) in
     
     let unpack_reg (l : string list) : instruction list =
+      let len = (Int64.of_int ((List.length l) * 8)) in
+      [ ICom ("unpack the closure") ] @ [ ISub (Reg RSP, Const len) ] @
+      [ IMov (Reg R11, RegOffset(RBP, 2)) ] @ [ ISub (Reg R11, Const closure_tag) ] @
       let rec unpack_reg_help (l : string list) (count1 : int) (count2 : int): instruction list =
         (match l with
         | [] -> []
         | _::tail ->
-            [ IMov (Reg R11, RegOffset(RAX, count1)) ; IMov (RegOffset(RBP, count2), Reg R11) ] @
-            (unpack_reg_help tail (count1 +1) (count1 -1))  ) in
+            [ IMov (Reg RAX, RegOffset(R11, count1)) ; IMov (RegOffset(RBP, count2), Reg RAX) ] @
+            (unpack_reg_help tail (count1 +1) (count2 -1))  ) in
       (unpack_reg_help l 3 (-1)) in
     
     let update_env (l : string list) (env : renv) : renv =
@@ -213,20 +216,22 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     let unpack = (unpack_reg free_vars) in
     let env' = (update_env free_vars env') in
 
-    let instrs = unpack @ (compile_expr body env' fenv nenv) in
+    let instrs = unpack @ [ ICom ("actual function body") ] @ (compile_expr body env' fenv nenv) in
     let arg_len = (Int64.of_int (List.length params)) in
 
     (* compile function *)
     [ IJmp (end_name) ] @ (callee_instrs fun_name instrs (num_expr e)) @ [ ILabel (end_name) ] @
     
-    [ IMov (Reg RAX, Reg R15) ; IAdd (Reg RAX, Const closure_tag) ] @ (* create lambda tuple *)
+    [ ICom ("start filling in the closure information") ] @
     [ IMovq (RegOffset(R15, 0), Const arg_len) ] @ (* set arg size at pos 0 *)
-    [ IMovq (RegOffset(R15, 1), Any fun_name) ] @
-    update @ [ IAdd (Reg R15, Const (Int64.of_int ((free_vars_size + 3) * 8))) ] (* set func label at pos 1 *)
+    [ IMovq (RegOffset(R15, 1), Any fun_name) ] @ update @ 
+    [ ICom ("start creating the closure value") ] @
+    [ IMov (Reg RAX, Reg R15) ; IAdd (Reg RAX, Const closure_tag) ] @ (* create lambda tuple *)
+    [ IAdd (Reg R15, Const (Int64.of_int ((free_vars_size + 3) * 8))) ] (* set func label at pos 1 *)
     
   | ELamApp (fe, ael, tag) ->
     let arity = (Int64.of_int (List.length ael)) in
-    let (env', reg_offset) = extend_renv (sprintf "temp_%d_1" tag) env in
+    let (env', reg_offset) = extend_renv (sprintf "clos_%d_1" tag) env in
     let elist = (compile_elist compile_expr ael env' fenv nenv) in
     
     (* closure error checks instructions and call second val of func tuple *)
@@ -235,7 +240,7 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     (error_arity_mismatch (Reg R11) (Const arity) tag 2) @ [ ICallArg (RegOffset (RAX, 1)) ] in
 
     (compile_expr fe env fenv nenv) @ [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
-    (caller_instrs call_lambda elist)
+    [ ICom (sprintf "start calling lambda" ) ] @ (caller_instrs call_lambda elist)
 
   | ELetRec (recs, body, _) -> failwith ("TODO rec")
 

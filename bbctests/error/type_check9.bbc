@@ -1,0 +1,7 @@
+NAME: type check error 9
+DESCRIPTION: evaluates a program with type checking error
+SRC:
+(let (x (lambda (x) x))
+  (add1 x))
+EXPECTED:
+|ORACLE
