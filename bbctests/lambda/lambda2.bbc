@@ -8,4 +8,4 @@ SRC:
 )
 EXPECTED:
 > <clos:1>
-4
+3

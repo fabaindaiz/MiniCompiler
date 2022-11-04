@@ -122,6 +122,13 @@ let compile_elist (compile_expr) (exprs : tag eexpr list) (env : renv) (fenv : f
   List.fold_left (fun res i -> res @ [ (compile_expr i env fenv nenv) ]) [] exprs
 
 
+(* make RSP value multiple of 16 *)
+let rsp_mask = 0xfffffff0
+
+let rsp_offset (num : int) : arg =
+  Const (Int64.of_int ((num + 8) land rsp_mask))
+ 
+
 (* pack the closure arguments *)
 let closure_pack (l : string list) (reg : reg) (env : renv) : instruction list =
   let len = (Int64.of_int (List.length l)) in
@@ -139,9 +146,8 @@ let closure_pack (l : string list) (reg : reg) (env : renv) : instruction list =
 
 (* unpack the closure arguments *)
 let closure_unpack (l : string list) : instruction list =
-  let len = (Int64.of_int ((List.length l) * 8)) in
-  [ ICom ("unpack closure") ] @ [ ISub (Reg RSP, Const len) ] @
-  [ IMov (Reg R11, RegOffset(RBP, 2)) ] @ [ ISub (Reg R11, Const closure_tag) ] @
+  [ ICom ("unpack closure") ] @ [ ISub (Reg RSP, rsp_offset ((List.length l) * 8)) ] @
+  [ IMov (Reg R11, Reg RAX) ] @ (* untagged lambda should be already in RAX *)
   let rec unpack_reg_help (l : string list) (count1 : int) (count2 : int): instruction list =
     (match l with
     | [] -> []
@@ -197,14 +203,6 @@ let get_free_vars (e : tag eexpr) (l : string list) : string list =
     let cons_uniq (xs : string list) (x : string) : string list = if List.mem x xs then xs else x :: xs in
     List.rev (List.fold_left cons_uniq [] xs) in
   (remove_duplicates (get_free_vars_help e l))
-
-
-(* make RSP value multiple of 16 *)
-let rsp_mask = 0xfffffff0
-
-let rsp_offset (num : int) : arg =
-  Const (Int64.of_int ((num + 8) land rsp_mask))
- 
 
 (* prelude for callee *)
 let callee_start (name : string) (num : int): instruction list =
