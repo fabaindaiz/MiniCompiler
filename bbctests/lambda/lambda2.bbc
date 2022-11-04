@@ -2,8 +2,10 @@ NAME: lambda 2
 DESCRIPTION: evaluates a function declaration after saving vars in stack
 SRC:
 (
+  (defsys print any -> any)
   (let (add (lambda (x) (lambda (y) (+ x y))))
-    (@ (@ add 1) 2))
+    (@ (print (@ add 1)) 2))
 )
 EXPECTED:
-|ORACLE
+> <clos:1>
+4

@@ -30,10 +30,20 @@ void get_value(char* buffer, VAL val) {
     sprintf(buffer, ")");
   } else if ((val & CLOSURE_TAG) == CLOSURE_TAG) { // TODO closure print
     VAL* point = (VAL*)(val - CLOSURE_TAG);
-    sprintf(buffer, "<clos:");
-    buffer+=6;
-    sprintf(buffer, "%ld", ((int64_t)(point[0])));
-    buffer+=1;
+    sprintf(buffer, "<clos:%ld", ((int64_t)(point[0])));
+    buffer+=7;
+    /*
+    // descomentar esto para ver la clausura completa en el print
+    int64_t end = point[2];
+    //printf("%ld",end);
+    for (int i = 3; i < end + 3; i++)
+    {
+      char buf[50];
+      get_value(buf, point[i]);
+      sprintf(buffer, " %s", buf);
+      buffer+=strlen(buf) + 1;
+    }
+    */
     sprintf(buffer, ">");
   } else if ((val & BOOL_TAG) == 0) { // val is even ==> number
     sprintf(buffer, "%ld", ((int64_t)(val)) / 2); // shift bits right to remove tag

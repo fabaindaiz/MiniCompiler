@@ -34,6 +34,7 @@ let extend_renv_reg (x : string * arg) (env : renv) : (renv) =
 
 (* calculate an aprox number of used stack spaces *)
 let rec num_expr (expr : tag eexpr) : int =
+  100+
   match expr with
   | ENum (_, _) -> 0
   | EBool (_, _) -> 0
