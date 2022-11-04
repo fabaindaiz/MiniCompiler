@@ -199,10 +199,17 @@ let get_free_vars (e : tag eexpr) (l : string list) : string list =
   (remove_duplicates (get_free_vars_help e l))
 
 
+(* make RSP value multiple of 16 *)
+let rsp_mask = 0xfffffff0
+
+let rsp_offset (num : int) : arg =
+  Const (Int64.of_int ((num + 8) land rsp_mask))
+ 
+
 (* prelude for callee *)
 let callee_start (name : string) (num : int): instruction list =
   [ ILabel(name) ] @ [ ICom("prologue") ] @ [ IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP) ] @
-  [ ISub(Reg RSP, Const(Int64.of_int ((num + 1) * 8))) ; ICom("function body") ]
+  [ ISub(Reg RSP, (rsp_offset (num*8))) ; ICom("function body") ]
 
 (* return for callee *)
 let callee_end : (instruction list) =
