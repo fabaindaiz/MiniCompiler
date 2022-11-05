@@ -234,12 +234,12 @@ let function_env (l : arg list) (env : renv) =
       (match List.mem reg l with
       | true ->
         (match reg with
-        | Reg R9 -> [(id, RegOffset(RBP, 7))]
-        | Reg R8 -> [(id, RegOffset(RBP, 6))]
-        | Reg RCX -> [(id, RegOffset(RBP, 5))]
-        | Reg RDX -> [(id, RegOffset(RBP, 4))]
-        | Reg RDI -> [(id, RegOffset(RBP, 3))]
-        | Reg RSI -> [(id, RegOffset(RBP, 2))]
+        | Reg R9 -> [(id, RegOffset(RSP, 5))]
+        | Reg R8 -> [(id, RegOffset(RSP, 4))]
+        | Reg RCX -> [(id, RegOffset(RSP, 3))]
+        | Reg RDX -> [(id, RegOffset(RSP, 2))]
+        | Reg RSI -> [(id, RegOffset(RSP, 1))]
+        | Reg RDI -> [(id, RegOffset(RSP, 0))]
         | _ -> [(id, reg)] ) @
         (function_env_help l tail)
       | false ->

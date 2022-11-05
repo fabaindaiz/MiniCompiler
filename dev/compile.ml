@@ -126,17 +126,24 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     [ IMov (Reg R11, Const val_true) ; ICmp (Reg RAX, Reg R11) ; IJne(else_label) ] @
     (compile_expr t env fenv nenv) @ [ IJmp (done_label) ; ILabel (else_label) ] @
     (compile_expr e env fenv nenv) @ [ ILabel (done_label) ]
+
   | EApp (f, p, _) -> 
     let args_f = (List.assoc_opt f fenv) in
     let name_f = (List.assoc_opt f nenv) in
     (match args_f with
     | Some n -> if (n == List.length p) then
       let elist = (compile_elist compile_expr p env fenv nenv) in
+      let instrs = caller_args elist in
+      let overwrited = (get_overwrite_reg instrs) in
+      (* if ((List.length overwrited) > 0) then (printf "%d" (List.length overwrited)) else (); *)
+      let env' = (function_env overwrited env) in
+      let elist = (compile_elist compile_expr p env' fenv nenv) in
       (match name_f with
       | Some f' -> (caller_instrs [(ICall f')] elist) (* defsys *)
       | None -> (caller_instrs [(ICall f)] elist) ) (* deffun *)
       else failwith(sprintf "Arity mismatch: %s expected %d arguments but got %d" f n (List.length p))
     | None -> failwith(sprintf "undefined funtion: %s" f) )
+
   | ETuple(elist, tag) ->
     let (env', reg_offset) = extend_renv (sprintf "temp_%d" tag) env in
     let init_R15 = RegOffset (RBP, reg_offset) in
@@ -201,7 +208,12 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     let (env', reg_offset) = extend_renv (sprintf "clos_%d_1" tag) env in
 
     let elist = (compile_elist compile_expr ael env' fenv nenv) in
-    
+    let instrs = caller_args elist in
+    let overwrited = (get_overwrite_reg instrs) in
+    (* if ((List.length overwrited) > 0) then (printf "%d" (List.length overwrited)) else (); *)
+    let env' = (function_env overwrited env) in
+    let elist = (compile_elist compile_expr ael env' fenv nenv) in
+
     (* closure error checks instructions and call second val of func tuple *)
     let caller_lambda = [ IMov (Reg RAX, RegOffset(RBP, reg_offset)) ] @ (type_error_check EClosure RAX tag 1) @
     [ ISub (Reg RAX, Const closure_tag) ; IMov (Reg R11, RegOffset (RAX, 0)) ] @
