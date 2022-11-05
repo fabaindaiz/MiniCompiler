@@ -311,6 +311,8 @@ let env_from_args (args : string list) : renv =
   
 (* generate an instruction for each argument *)
 let caller_args (instrs : instruction list list) : instruction list =
+  let new_instrs = List.rev instrs in
+  let arg_len = List.length instrs in
   let rec caller_args_help (l : instruction list list) (count : int) : instruction list =
     match l with
     | [] -> []
@@ -323,14 +325,14 @@ let caller_args (instrs : instruction list list) : instruction list =
       | 5 -> [ IMov(Reg R8, Reg RAX) ]
       | 6 -> [ IMov(Reg R9, Reg RAX) ]
       | _ -> [ IPush(Reg RAX) ] ) in
-    instr @ save @ (caller_args_help tail (count+1)) in
-  [ ICom("load args") ] @ (caller_args_help instrs 1)
+    instr @ save @ (caller_args_help tail (count-1)) in
+  [ ICom("load args") ] @ (caller_args_help new_instrs arg_len)
 
 let caller_save : instruction list =
   [ ICom("prologue") ] @ [ IPush(Reg R9) ; IPush(Reg R8) ; IPush(Reg RCX) ; IPush(Reg RDX) ; IPush(Reg RSI) ; IPush(Reg RDI) ]
 
 let caller_restore (num : int) : instruction list = 
-  [ ICom("epilogue") ] @ (if num >= 7 then [ IAdd(Reg RSP, (rsp_offset ((num - 6) * 8))) ] else []) @
+  [ ICom("epilogue") ] @ (if num >= 7 then [ IAdd(Reg RSP, Const (Int64.of_int ((num - 6) * 8))) ] else []) @
   [ IPop(Reg RDI) ; IPop(Reg RSI) ; IPop(Reg RDX) ; IPop(Reg RCX) ; IPop(Reg R8) ; IPop(Reg R9) ] @ [ ICom("end call") ]
 
 (* generate instruction for call *)
