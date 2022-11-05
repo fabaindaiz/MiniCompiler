@@ -1,0 +1,13 @@
+NAME: lamaez
+DESCRIPTION: evaluates a function declaration after saving vars in stack
+SRC:
+(
+  (def (fib n) (if (<= n 1) 1 2))
+  (def (app f n) (@ f n))
+
+  (app
+        (lambda (y) (app (lambda (n) (fib n)) y))
+        5)
+)
+EXPECTED:
+|ORACLE
