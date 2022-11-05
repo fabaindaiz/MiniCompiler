@@ -223,8 +223,17 @@ let compile_function (func : tag efundef) (fenv : fenv) (nenv : nenv) : (instruc
   match func with
   | EDefFun (fun_name, arg_list, e, _) ->
     let fenv' = (fun_name, List.length arg_list) :: fenv in (* definir esto antes permite funciones recursivas *)
-    let instrs = (compile_expr (e) (env_from_args arg_list) fenv' nenv) in
-      (callee_instrs fun_name instrs (num_expr e + (List.length arg_list)), fenv', nenv)
+    let env = (env_from_args arg_list) in
+    let instrs = (compile_expr e env fenv' nenv) in
+
+    (*
+    let overwrited = (get_overwrite_reg instrs) in
+    (* if ((List.length overwrited) > 0) then (printf "%d" (List.length overwrited)) else (); *)
+    let env' = (function_env overwrited env) in
+    let instrs = (compile_expr e env' fenv' nenv) in
+    *)
+
+    (callee_instrs fun_name instrs (num_expr e + (List.length arg_list)), fenv', nenv)
   | EDefSys (fun_name, type_list, type_ret, tag) ->
     let call_name = fun_name ^ "_sys" in
     let fenv' = (fun_name, List.length type_list) :: fenv in
@@ -264,11 +273,22 @@ let compile_enviroment (func : tag efundef) (fenv : fenv) (nenv : nenv) : (fenv 
 let compile_function (func : tag efundef) (fenv : fenv) (nenv : nenv) : instruction list =
   match func with
   | EDefFun (fun_name, arg_list, e, _) ->
-    let instrs = (compile_expr (e) (env_from_args arg_list) fenv nenv) in
-      (callee_instrs fun_name instrs (num_expr e))
+    let env = (env_from_args arg_list) in
+    let instrs = (compile_expr e env fenv nenv) in
+
+    (*
+    (* Descomentar esto *)
+
+    let overwrited = (get_overwrite_reg instrs) in
+    (* if ((List.length overwrited) > 0) then (printf "%d" (List.length overwrited)) else (); *)
+    let env' = (function_env overwrited env) in
+    let instrs = (compile_expr e env' fenv' nenv) in
+    *)
+
+    (callee_instrs fun_name instrs (num_expr e))
   | EDefSys (fun_name, type_list, type_ret, tag) ->
     let call_name = fun_name ^ "_sys" in
-      (callee_defsys call_name fun_name type_list type_ret tag)
+    (callee_defsys call_name fun_name type_list type_ret tag)
 
 (* compile several functions *)
 let compile_functions_alt (flist : tag efundef list) : (instruction list * fenv * nenv) =

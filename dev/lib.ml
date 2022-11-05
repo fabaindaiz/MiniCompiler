@@ -34,7 +34,6 @@ let extend_renv_reg (x : string * arg) (env : renv) : (renv) =
 
 (* calculate an aprox number of used stack spaces *)
 let rec num_expr (expr : tag eexpr) : int =
-  100+
   match expr with
   | ENum (_, _) -> 0
   | EBool (_, _) -> 0
@@ -122,12 +121,12 @@ let compile_elist (compile_expr) (exprs : tag eexpr list) (env : renv) (fenv : f
   List.fold_left (fun res i -> res @ [ (compile_expr i env fenv nenv) ]) [] exprs
 
 
-(* make RSP value multiple of 16 *)
 let rsp_mask = 0xfffffff0
 
+(* make RSP value multiple of 16 *)
 let rsp_offset (num : int) : arg =
-  Const (Int64.of_int ((num + 8) land rsp_mask))
- 
+  Const (Int64.of_int (num land rsp_mask))
+
 
 (* pack the closure arguments *)
 let closure_pack (l : string list) (reg : reg) (env : renv) : instruction list =
@@ -146,7 +145,7 @@ let closure_pack (l : string list) (reg : reg) (env : renv) : instruction list =
 
 (* unpack the closure arguments *)
 let closure_unpack (l : string list) : instruction list =
-  [ ICom ("unpack closure") ] @ [ ISub (Reg RSP, rsp_offset ((List.length l) * 8)) ] @
+  [ ICom ("unpack closure") ] @ [ ISub (Reg RSP, rsp_offset (((List.length l) + 1) * 8)) ] @
   [ IMov (Reg R11, Reg RAX) ] @ (* untagged lambda should be already in RAX *)
   let rec unpack_reg_help (l : string list) (count1 : int) (count2 : int): instruction list =
     (match l with
@@ -165,6 +164,11 @@ let closure_env (l : string list) (env : renv) : renv =
       let env' = (List.remove_assoc id env) in 
       (update_env_help tail ((id, RegOffset(RBP, count))::env') (count-1)) ) in
   (update_env_help l env (-1))
+
+
+let remove_list_duplicates (xs : 'a list) : 'a list = 
+  let cons_uniq (xs : 'a list) (x : 'a) : 'a list = if List.mem x xs then xs else x :: xs in
+  List.rev (List.fold_left cons_uniq [] xs)
 
 
 (* get a list of free vars *)
@@ -199,15 +203,54 @@ let get_free_vars (e : tag eexpr) (l : string list) : string list =
       match slist with
       | [] -> []
       | s::tail -> [s] @ (get_vars_list tail l) in
-  let remove_duplicates (xs : string list) : string list = 
-    let cons_uniq (xs : string list) (x : string) : string list = if List.mem x xs then xs else x :: xs in
-    List.rev (List.fold_left cons_uniq [] xs) in
-  (remove_duplicates (get_free_vars_help e l))
+  (remove_list_duplicates (get_free_vars_help e l))
+
+
+let get_overwrite_reg (instrs : instruction list) : arg list =
+  let rec get_overwrited_reg_help (instrs : instruction list) (l : arg list) : arg list =
+    match instrs with
+    | [] -> []
+    | instr::tail ->
+      (match instr with
+      | IMov(Reg RAX, x) ->
+        (match List.mem x l with
+        | true -> [x]
+        | false -> [] ) @
+        (get_overwrited_reg_help tail l)
+      | IMov(x, _) ->
+        let l' = l @ [x] in
+        (match x with
+        | Reg R9 | Reg R8 | Reg RCX | Reg RDX | Reg RDI | Reg RSI -> (get_overwrited_reg_help tail l')
+        | _ -> (get_overwrited_reg_help tail l) )
+      | _ -> (get_overwrited_reg_help tail l) ) in
+  (remove_list_duplicates (get_overwrited_reg_help instrs []))
+
+let function_env (l : arg list) (env : renv) =
+  let rec function_env_help (l : arg list) (env : renv) : renv =
+    match env with
+    | [] -> []
+    | t::tail ->
+      let (id, reg) = t in
+      (match List.mem reg l with
+      | true ->
+        (match reg with
+        | Reg R9 -> [(id, RegOffset(RBP, 7))]
+        | Reg R8 -> [(id, RegOffset(RBP, 6))]
+        | Reg RCX -> [(id, RegOffset(RBP, 5))]
+        | Reg RDX -> [(id, RegOffset(RBP, 4))]
+        | Reg RDI -> [(id, RegOffset(RBP, 3))]
+        | Reg RSI -> [(id, RegOffset(RBP, 2))]
+        | _ -> [(id, reg)] ) @
+        (function_env_help l tail)
+      | false ->
+        [t] @ (function_env_help l tail) ) in
+  (function_env_help l env)
+
 
 (* prelude for callee *)
 let callee_start (name : string) (num : int): instruction list =
   [ ILabel(name) ] @ [ ICom("prologue") ] @ [ IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP) ] @
-  [ ISub(Reg RSP, (rsp_offset (num*8))) ; ICom("function body") ]
+  [ ISub(Reg RSP, (rsp_offset ((num + 1) * 8))) ; ICom("function body") ]
 
 (* return for callee *)
 let callee_end : (instruction list) =
@@ -287,7 +330,7 @@ let caller_save : instruction list =
   [ ICom("prologue") ] @ [ IPush(Reg R9) ; IPush(Reg R8) ; IPush(Reg RCX) ; IPush(Reg RDX) ; IPush(Reg RSI) ; IPush(Reg RDI) ]
 
 let caller_restore (num : int) : instruction list = 
-  [ ICom("epilogue") ] @ (if num >= 7 then [ IAdd(Reg RSP, Const (Int64.of_int ((num - 6) * 8))) ] else []) @
+  [ ICom("epilogue") ] @ (if num >= 7 then [ IAdd(Reg RSP, (rsp_offset ((num - 6) * 8))) ] else []) @
   [ IPop(Reg RDI) ; IPop(Reg RSI) ; IPop(Reg RDX) ; IPop(Reg RCX) ; IPop(Reg R8) ; IPop(Reg R9) ] @ [ ICom("end call") ]
 
 (* generate instruction for call *)
