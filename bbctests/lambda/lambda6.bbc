@@ -1,0 +1,13 @@
+NAME: lambda 6
+DESCRIPTION: evaluates a function declaration after saving vars in stack
+SRC:
+(
+  (def (fib n) (if (<= n 1) 1 (+ (fib (+ n -1)) (fib (+ n -2)))))
+  (def (pairfun f g p) (tup (@ f (get p 0)) (@ g (get p 1))))
+
+  (pairfun (lambda (x) (+ 3 x))
+          (lambda (y) (pairfun (lambda (n) (fib n)) (lambda (z) (+ z y)) (tup y y)))
+          (tup 39 6))
+)
+EXPECTED:
+|ORACLE
