@@ -6,6 +6,13 @@ open CCSexp
 exception CTError of string
 
 
+(* gensym for let_tup *)
+let gensym_let_tup =
+  let a_counter = ref 0 in
+  (fun basename ->
+    a_counter := !a_counter + 1;
+    sprintf "%s_%d" basename !a_counter);;
+
 let parse_arg_name (sexp : sexp) : string =
   match sexp with
   | `Atom name -> name
@@ -39,8 +46,9 @@ let rec parse_exp (sexp : sexp) : expr =
       (match e1 with
       | `List [`Atom id; e] -> Let (id, parse_exp e, parse_exp e2)
       | `List [`List (`Atom "tup" :: ids); t] -> 
+        let tup_str = (gensym_let_tup "let_tup") in
         let arg_names = List.map parse_arg_name ids in
-        create_let_tup arg_names (parse_exp t) (parse_exp e2) 0L
+        Let (tup_str, (parse_exp t), (create_let_tup arg_names (Id tup_str) (parse_exp e2) 0L))
       | _ -> raise (CTError (sprintf "Not a valid let assignment: %s" (to_string e1))) )
     | `Atom "letrec" -> (
       match e1 with
