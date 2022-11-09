@@ -46,7 +46,7 @@ let rec num_expr (expr : tag eexpr) : int =
   | ESet (t, n, v, _) -> 2 + (max (num_expr t) (max (num_expr n) (num_expr v)))
   | ELambda (par, body, _) -> (num_expr_args (List.length par)) + (num_expr body)
   | ELamApp (fe, ael, _) -> 1 + max (num_expr fe) (num_expr_list ael)
-  | ELetRec (recs, body, _) -> 1 + max (num_expr_recs recs) (num_expr body)
+  | ELetRec (recs, body, _) -> (List.length recs) + max (num_expr_recs recs) (num_expr body)
   and num_expr_args (arg_num : int) : int =
     if arg_num >= 7 then arg_num - 6 else 0
   and num_expr_list (elist: tag eexpr list) : int =
@@ -211,6 +211,22 @@ let get_free_vars (e : tag eexpr) (l : string list) : string list =
       | [] -> []
       | s::tail -> [s] @ (get_vars_list tail l) in
   (remove_list_duplicates (get_free_vars_help e l))
+
+
+(* Compila las clausuras y genera el ambiente para los lambdas de un letrec *)
+let rec letrec_env (elist : (string * string list * 'a eexpr * 'a) list) (env : renv) : (renv * instruction list) =
+  match elist with
+  | [] -> (env, [])
+  | (name, params, body, tag)::tail ->
+    let (env', reg_offset) = (extend_renv name env) in
+    let (env'', instrs) = (letrec_env tail env') in
+
+    let expr = (ELambda (params, body, tag)) in
+    let free_vars = (get_free_vars expr []) in
+    let heap_offset = (Int64.of_int (((List.length free_vars) + 3) * 8)) in
+
+    (env'' , [ IMov (Reg RAX, Reg R15) ; IAdd (Reg RAX, Const closure_tag) ] @
+    [ IMov (RegOffset(RBP, reg_offset), Reg RAX) ; IAdd (Reg R15, Const heap_offset) ] @ instrs)
 
 
 let get_overwrite_reg (instrs : instruction list) : arg list =

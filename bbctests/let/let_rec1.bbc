@@ -1,0 +1,16 @@
+NAME: let-rec 1
+DESCRIPTION: evaluates a let-binding easy
+SRC:
+(
+    (defsys print any -> any)
+    (letrec
+    ((count (lambda (n) (if (<= n 0) 0 (@ count (+ (print n) -1))))))
+    (@ count 5))
+)
+EXPECTED:
+> 5
+> 4
+> 3
+> 2
+> 1
+0

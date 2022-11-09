@@ -34,6 +34,45 @@ let check_index_in_bounds (compile_expr) (tuple : tag eexpr) (index : tag eexpr)
   , tuple_arg
 
 
+let compile_lambda (compile_expr) (reg : reg) (params) (body) (tag : tag) (env : renv) (fenv : fenv) (nenv : nenv) : instruction list =
+  let fun_name = sprintf "lambda_%d" tag in
+  let end_name = sprintf "end_%d" tag in
+
+  let expr = (ELambda (params, body, tag)) in
+  
+  (* get free vars *)
+  let free_vars = (get_free_vars expr []) in
+  let env' = (env_from_args params) @ env in
+  
+  (* update closure arguments *)
+  let clos_pack = (closure_pack free_vars reg env') in
+  let clos_unpack = (closure_unpack free_vars) in
+  let env' = (closure_env free_vars env') in
+
+  let args_num = (Int64.of_int (List.length params)) in
+  
+  (* compile function *)
+  let callee_lambda = clos_unpack @ [ ICom ("lambda body") ] @ (compile_expr body env' fenv nenv) in
+  [ IJmp (end_name) ] @ (callee_instrs fun_name callee_lambda (num_expr expr)) @ [ ILabel (end_name) ] @
+  
+  [ ICom ("closure information") ] @
+  [ IMovq (RegOffset(reg, 0), Const args_num) ] @ (* set arg size at pos 0 *)
+  [ IMovq (RegOffset(reg, 1), Any fun_name) ] @ clos_pack @ 
+  [ ICom ("closure value") ] @
+  [ IMov (Reg RAX, Reg reg) ; IAdd (Reg RAX, Const closure_tag) ] (* create lambda tuple *)
+
+let rec compile_letrec (compile_expr) (llist : (string * string list * 'a eexpr * 'a) list) (env : renv) (fenv : fenv) (nenv : nenv) : instruction list =
+  match llist with
+  | [] -> []
+  | (name, params, body, tag)::tail ->
+    let reg = (match List.assoc_opt name env with
+      | Some arg -> arg (* mueve valor desde la pila a RAX *)
+      | None -> failwith (sprintf "unbound variable %s in renv" name) ) in
+    [ IMov (Reg R10, reg) ; ISub (Reg R10, Const closure_tag) ] @
+    (compile_lambda compile_expr R10 params body tag env fenv nenv) @
+    (compile_letrec compile_expr tail env fenv nenv) 
+
+
 (* compila primitivas unarias *)
 let compile_prim1 (compile_expr) (op : prim1) (e : tag eexpr) (tag : tag) (env : renv) (fenv : fenv) (nenv : nenv) : instruction list =
   let insts =
@@ -177,30 +216,10 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     [ IMov (Reg RAX, tuple_arg) ] (* returns tuple *)
   
   | ELambda (params, body, tag) ->
-    let fun_name = sprintf "lambda_%d" tag in
-    let end_name = sprintf "end_%d" tag in
-    
-    (* get free vars *)
     let free_vars = (get_free_vars e []) in
-    let env' = (env_from_args params) @ env in
-    
-    (* update closure arguments *)
-    let clos_pack = (closure_pack free_vars R15 env') in
-    let clos_unpack = (closure_unpack free_vars) in
-    let env' = (closure_env free_vars env') in
-
-    let args_num = (Int64.of_int (List.length params)) in
     let heap_offset= (Int64.of_int (((List.length free_vars) + 3) * 8)) in
-    
-    (* compile function *)
-    let callee_lambda = clos_unpack @ [ ICom ("lambda body") ] @ (compile_expr body env' fenv nenv) in
-    [ IJmp (end_name) ] @ (callee_instrs fun_name callee_lambda (num_expr e)) @ [ ILabel (end_name) ] @
-    
-    [ ICom ("closure information") ] @
-    [ IMovq (RegOffset(R15, 0), Const args_num) ] @ (* set arg size at pos 0 *)
-    [ IMovq (RegOffset(R15, 1), Any fun_name) ] @ clos_pack @ 
-    [ ICom ("closure value") ] @
-    [ IMov (Reg RAX, Reg R15) ; IAdd (Reg RAX, Const closure_tag) ] @ (* create lambda tuple *)
+
+    (compile_lambda compile_expr R15 params body tag env fenv nenv) @
     [ IAdd (Reg R15, Const heap_offset) ] (* set func label at pos 1 *)
     
   | ELamApp (fe, ael, tag) ->
@@ -220,14 +239,13 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     (error_arity_mismatch (Reg R11) (Const arity) tag 2) @ [ ICallArg (RegOffset (RAX, 1)) ] in
 
     (compile_expr fe env fenv nenv) @ [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
-    [ ICom (sprintf "call lambda" ) ] @ (caller_instrs caller_lambda elist)
+    [ ICom (sprintf "call lambda") ] @ (caller_instrs caller_lambda elist)
 
   | ELetRec (recs, body, _) ->
-    (match recs with
-    | [] -> []
-    | (name, params, body, id)::tail ->
-      failwith("todo") ) @
-    (compile_expr body env fenv nenv)
+    let (env', instrs) = (letrec_env recs env) in
+    [ ICom (sprintf "letrec_closure") ] @ instrs @ [ ICom (sprintf "letrec_lambda") ] @
+    (compile_letrec compile_expr recs env' fenv nenv) @ 
+    [ ICom (sprintf "letrec_body") ] @ (compile_expr body env' fenv nenv)
 
 
 (* Caso 1 : Compilación normal *)
