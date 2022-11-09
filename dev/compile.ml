@@ -222,7 +222,12 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     (compile_expr fe env fenv nenv) @ [ IMov (RegOffset (RBP, reg_offset), Reg RAX) ] @
     [ ICom (sprintf "call lambda" ) ] @ (caller_instrs caller_lambda elist)
 
-  | ELetRec (recs, body, _) -> failwith ("TODO rec")
+  | ELetRec (recs, body, _) ->
+    (match recs with
+    | [] -> []
+    | (name, params, body, id)::tail ->
+      failwith("todo") ) @
+    (compile_expr body env fenv nenv)
 
 
 (* Caso 1 : Compilación normal *)

@@ -1,6 +1,5 @@
 (** Lib **)
 open Printf
-open Set
 open Asm
 open Ast
 
@@ -46,14 +45,18 @@ let rec num_expr (expr : tag eexpr) : int =
   | EApp (_, elist, _) -> (num_expr_list elist)
   | ESet (t, n, v, _) -> 2 + (max (num_expr t) (max (num_expr n) (num_expr v)))
   | ELambda (par, body, _) -> (num_expr_args (List.length par)) + (num_expr body)
-  | ELamApp (fe, ael, _) -> 1 + max (num_expr_list ael) (num_expr fe)
-  | ELetRec (recs, body, _) -> failwith ("TODO")
+  | ELamApp (fe, ael, _) -> 1 + max (num_expr fe) (num_expr_list ael)
+  | ELetRec (recs, body, _) -> 1 + max (num_expr_recs recs) (num_expr body)
   and num_expr_args (arg_num : int) : int =
     if arg_num >= 7 then arg_num - 6 else 0
   and num_expr_list (elist: tag eexpr list) : int =
     match elist with
     | [] -> 0
     | e1::tail -> (max (num_expr e1) (num_expr_list tail))
+  and num_expr_recs (elist: (string * string list * 'a eexpr * 'a) list) : int =
+    match elist with
+    | [] -> 0
+    | (_, _, e1, _)::tail -> (max (num_expr e1) (num_expr_recs tail))
 
 
 let bool_tag = 1L
@@ -194,11 +197,15 @@ let get_free_vars (e : tag eexpr) (l : string list) : string list =
       let l' = l @ (get_vars_list par l) in
       (get_free_vars_help body l')
     | ELamApp (fe, ael, _) -> (get_free_vars_help fe l) @ (get_free_vars_help_list ael l)
-    | ELetRec (recs, body, _) -> failwith ("TODO")
+    | ELetRec (recs, body, _) -> (get_free_vars_help_recs recs l) @ (get_free_vars_help body l)
     and get_free_vars_help_list (elist: tag eexpr list) (l : string list) : string list =
       match elist with
       | [] -> []
-      | e::tail -> (get_free_vars_help e l) @ (get_free_vars_help_list tail l)
+      | e1::tail -> (get_free_vars_help e1 l) @ (get_free_vars_help_list tail l)
+    and get_free_vars_help_recs (elist : (string * string list * 'a eexpr * 'a) list) (l : string list) : string list =
+      match elist with
+      | [] -> []
+      | (_, _, e1, _)::tail -> (get_free_vars_help e1 l) @ (get_free_vars_help_recs tail l)
     and get_vars_list (slist: string list) (l : string list) : string list =
       match slist with
       | [] -> []
@@ -229,8 +236,7 @@ let function_env (l : arg list) (env : renv) =
   let rec function_env_help (l : arg list) (env : renv) : renv =
     match env with
     | [] -> []
-    | t::tail ->
-      let (id, reg) = t in
+    | (id, reg)::tail ->
       (match List.mem reg l with
       | true ->
         (match reg with
@@ -240,10 +246,9 @@ let function_env (l : arg list) (env : renv) =
         | Reg RDX -> [(id, RegOffset(RSP, 2))]
         | Reg RSI -> [(id, RegOffset(RSP, 1))]
         | Reg RDI -> [(id, RegOffset(RSP, 0))]
-        | _ -> [(id, reg)] ) @
-        (function_env_help l tail)
+        | _ -> [(id, reg)] ) @ (function_env_help l tail)
       | false ->
-        [t] @ (function_env_help l tail) ) in
+        [(id, reg)] @ (function_env_help l tail) ) in
   (function_env_help l env)
 
 

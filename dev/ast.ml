@@ -54,7 +54,7 @@ type 'a eexpr =
 | ESet of 'a eexpr * 'a eexpr * 'a eexpr * 'a
 | ELambda of string list * 'a eexpr * 'a
 | ELamApp of 'a eexpr * 'a eexpr list * 'a
-| ELetRec of (string * string list * 'a eexpr) list * 'a eexpr * 'a
+| ELetRec of (string * string list * 'a eexpr * 'a) list * 'a eexpr * 'a
 
 (* internal argument types *)
 type etype =
@@ -148,7 +148,15 @@ let rec tag_expr_help (e : expr) (cur : tag) : (tag eexpr * tag) =
       let (tag_i, temp_tag) = (tag_expr_help i !next_tag2) in
       next_tag2 := temp_tag ;  [ tag_i ] ) [] ael in
     (ELamApp (tag_fe, tag_e, cur), !next_tag2)
-  | LetRec (recs, body) -> failwith ("TODO")
+  | LetRec (recs, body) ->
+    let (tag_body, next_tag1) = tag_expr_help body (cur + 1) in
+    let next_tag2 = ref next_tag1 in
+    let tag_e = List.fold_left (fun res i -> res @
+      let (name, params, body) = i in
+      let (tag_i, temp_tag) = (tag_expr_help body !next_tag2) in
+      let tag_rec = temp_tag in
+      next_tag2 := temp_tag + 1 ;  [ name, params, tag_i, tag_rec ] ) [] recs in
+    (ELetRec (tag_e, tag_body, cur), !next_tag2)
 
 let tag_expr (e : expr) : tag eexpr =
   let (tagged, _) = tag_expr_help e 1 in tagged
