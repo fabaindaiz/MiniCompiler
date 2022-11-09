@@ -230,7 +230,7 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     let instrs = caller_args elist in
     let overwrited = (get_overwrite_reg instrs) in
     (* if ((List.length overwrited) > 0) then (printf "%d" (List.length overwrited)) else (); *)
-    let env' = (function_env overwrited env) in
+    let env' = (function_env overwrited env') in
     let elist = (compile_elist compile_expr ael env' fenv nenv) in
 
     (* closure error checks instructions and call second val of func tuple *)
