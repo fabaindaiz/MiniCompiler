@@ -260,14 +260,6 @@ let compile_function (func : tag efundef) (fenv : fenv) (nenv : nenv) : (instruc
     let fenv' = (fun_name, List.length arg_list) :: fenv in (* definir esto antes permite funciones recursivas *)
     let env = (env_from_args arg_list) in
     let instrs = (compile_expr e env fenv' nenv) in
-
-    (*
-    let overwrited = (get_overwrite_reg instrs) in
-    (* if ((List.length overwrited) > 0) then (printf "%d" (List.length overwrited)) else (); *)
-    let env' = (function_env overwrited env) in
-    let instrs = (compile_expr e env' fenv' nenv) in
-    *)
-
     (callee_instrs fun_name instrs (num_expr e + (List.length arg_list)), fenv', nenv)
   | EDefSys (fun_name, type_list, type_ret, tag) ->
     let call_name = fun_name ^ "_sys" in
@@ -310,16 +302,6 @@ let compile_function (func : tag efundef) (fenv : fenv) (nenv : nenv) : instruct
   | EDefFun (fun_name, arg_list, e, _) ->
     let env = (env_from_args arg_list) in
     let instrs = (compile_expr e env fenv nenv) in
-
-    (*
-    (* Descomentar esto *)
-
-    let overwrited = (get_overwrite_reg instrs) in
-    (* if ((List.length overwrited) > 0) then (printf "%d" (List.length overwrited)) else (); *)
-    let env' = (function_env overwrited env) in
-    let instrs = (compile_expr e env' fenv' nenv) in
-    *)
-
     (callee_instrs fun_name instrs (num_expr e))
   | EDefSys (fun_name, type_list, type_ret, tag) ->
     let call_name = fun_name ^ "_sys" in
