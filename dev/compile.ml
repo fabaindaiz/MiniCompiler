@@ -53,7 +53,7 @@ let compile_lambda (compile_expr) (reg : reg) (params) (body) (tag : tag) (env :
   
   (* compile function *)
   let callee_lambda = clos_unpack @ [ ICom ("lambda body") ] @ (compile_expr body env' fenv nenv) in
-  [ IJmp (end_name) ] @ (callee_instrs fun_name callee_lambda (num_expr expr)) @ [ ILabel (end_name) ] @
+  [ IJmp (end_name) ] @ (callee_instrs fun_name callee_lambda (num_expr body)) @ [ ILabel (end_name) ] @
   
   [ ICom ("closure information") ] @
   [ IMovq (RegOffset(reg, 0), Const args_num) ] @ (* set arg size at pos 0 *)

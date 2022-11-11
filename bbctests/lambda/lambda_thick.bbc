@@ -1,0 +1,14 @@
+NAME: lambda thick
+DESCRIPTION: stack heavy lambda
+SRC:
+(
+    ( @ (lambda (x) 
+        (let (a x)
+        (let (c (let (b (add1 a))
+                (let (d (add1 b))
+                (add1 (+ d b)))))
+        (add1 (+ c a))))
+    ) 10 )
+)
+EXPECTED:
+|ORACLE

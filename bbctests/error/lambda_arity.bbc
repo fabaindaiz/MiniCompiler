@@ -1,0 +1,7 @@
+NAME: lambda arity error 
+DESCRIPTION: evaluates a program with type checking error
+STATUS: RT error
+SRC:
+(@ (lambda (x y) (+ y x)) 4)
+EXPECTED:
+Arity mismatch: closure expected 2 arguments but got 1

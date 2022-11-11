@@ -39,12 +39,12 @@ let rec num_expr (expr : tag eexpr) : int =
   | ETuple (elist, _) -> 1 + (num_expr_list elist)
   | EId (_, _) -> 0
   | EPrim1 (_, e1, _) -> (num_expr e1)
-  | EPrim2 (_, e1, e2, _) -> 2 + (max (num_expr e1) (num_expr e2))
+  | EPrim2 (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
   | ELet (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
   | EIf (c, e1, e2, _) -> (max (num_expr c) (max (num_expr e1) (num_expr e2)))
   | EApp (_, elist, _) -> (num_expr_list elist)
   | ESet (t, n, v, _) -> 2 + (max (num_expr t) (max (num_expr n) (num_expr v)))
-  | ELambda (par, body, _) -> (num_expr_args (List.length par)) + (num_expr body)
+  | ELambda (par, _ , _) -> (num_expr_args (List.length par)) (* body se ejecuta despues de actualizar RBP *)
   | ELamApp (fe, ael, _) -> 1 + max (num_expr fe) (num_expr_list ael)
   | ELetRec (recs, body, _) -> (List.length recs) + max (num_expr_recs recs) (num_expr body)
   and num_expr_args (arg_num : int) : int =
@@ -126,9 +126,9 @@ let compile_elist (compile_expr) (exprs : tag eexpr list) (env : renv) (fenv : f
 
 let rsp_mask = 0xfffffff0
 
-(* make RSP value multiple of 16 *)
+(* make RSP value multiple of 16, rounding up *)
 let rsp_offset (num : int) : arg =
-  Const (Int64.of_int (num land rsp_mask))
+  Const (Int64.of_int ((num + 8) land rsp_mask))
 
 
 (* pack the closure arguments *)
@@ -148,7 +148,7 @@ let closure_pack (l : string list) (reg : reg) (env : renv) : instruction list =
 
 (* unpack the closure arguments *)
 let closure_unpack (l : string list) : instruction list =
-  [ ICom ("unpack closure") ] @ [ ISub (Reg RSP, rsp_offset (((List.length l) + 1) * 8)) ] @
+  [ ICom ("unpack closure") ] @ [ ISub (Reg RSP, rsp_offset ((List.length l) * 8)) ] @
   [ IMov (Reg R11, Reg RAX) ] @ (* untagged lambda should be already in RAX *)
   let rec unpack_reg_help (l : string list) (count1 : int) (count2 : int): instruction list =
     (match l with
@@ -271,7 +271,7 @@ let function_env (l : arg list) (env : renv) =
 (* prelude for callee *)
 let callee_start (name : string) (num : int): instruction list =
   [ ILabel(name) ] @ [ ICom("prologue") ] @ [ IPush(Reg RBP) ; IMov(Reg RBP, Reg RSP) ] @
-  [ ISub(Reg RSP, (rsp_offset ((num + 1) * 8))) ; ICom("function body") ]
+  [ ISub(Reg RSP, (rsp_offset (num  * 8))) ; ICom("function body") ]
 
 (* return for callee *)
 let callee_end : (instruction list) =

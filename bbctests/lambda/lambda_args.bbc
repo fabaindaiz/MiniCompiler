@@ -1,0 +1,10 @@
+NAME: lambda +6 args
+DESCRIPTION: stack heavy lambda
+SRC:
+(
+    ( @ (lambda (q w e r t y u i o p) 
+        (- (- (- q w) (- e r)) (- (- t y) (- (+ u i) (+ o p))))
+    ) 1 2 3 4 5 6 7 8 9 10 )
+)
+EXPECTED:
+|ORACLE
