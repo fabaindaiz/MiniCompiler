@@ -617,4 +617,4 @@ let () =
       )
     ) in
     tests_from_dir ~compile_flags ~compiler ~oracle ~runtime:"rt/sys.c" "bbctests" in
-  run "Tests entrega 4" (ocaml_tests @ bbc_tests)
+  run "Tests entrega 5" (ocaml_tests @ bbc_tests)
