@@ -50,13 +50,10 @@ let compile_lambda (compile_expr) (reg : reg) (params) (body) (tag : tag) (env :
   let env' = (closure_env free_vars env') in
 
   let args_num = (Int64.of_int (List.length params)) in
-  let req_bytes = Int64.of_int ((3 + List.length free_vars) * 8) in
   
   (* compile function *)
   let callee_lambda = clos_unpack @ [ ICom ("lambda body") ] @ (compile_expr body env' fenv nenv) in
   [ IJmp (end_name) ] @ (callee_instrs fun_name callee_lambda (num_expr body)) @ [ ILabel (end_name) ] @
-
-  request_memory req_bytes @ (* try gc *)
   
   [ ICom ("closure information") ] @
   [ IMovq (RegOffset(reg, 0), Const args_num) ] @ (* set arg size at pos 0 *)
@@ -225,6 +222,7 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     let free_vars = (get_free_vars e []) in
     let heap_offset= (Int64.of_int (((List.length free_vars) + 3) * 8)) in
 
+    request_memory heap_offset @ (* try gc *)
     (compile_lambda compile_expr R15 params body tag env fenv nenv) @
     [ IAdd (Reg R15, Const heap_offset) ] (* set func label at pos 1 *)
     
