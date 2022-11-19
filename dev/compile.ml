@@ -50,10 +50,13 @@ let compile_lambda (compile_expr) (reg : reg) (params) (body) (tag : tag) (env :
   let env' = (closure_env free_vars env') in
 
   let args_num = (Int64.of_int (List.length params)) in
+  let req_bytes = Int64.of_int ((3 + List.length free_vars) * 8) in
   
   (* compile function *)
   let callee_lambda = clos_unpack @ [ ICom ("lambda body") ] @ (compile_expr body env' fenv nenv) in
   [ IJmp (end_name) ] @ (callee_instrs fun_name callee_lambda (num_expr body)) @ [ ILabel (end_name) ] @
+
+  request_memory req_bytes @ (* try gc *)
   
   [ ICom ("closure information") ] @
   [ IMovq (RegOffset(reg, 0), Const args_num) ] @ (* set arg size at pos 0 *)
@@ -187,6 +190,7 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     let (env', reg_offset) = extend_renv (sprintf "temp_%d" tag) env in
     let init_R15 = RegOffset (RBP, reg_offset) in
     let tuple_size = List.length elist in
+    let req_bytes = Int64.of_int ((tuple_size + 1) * 8) in
     (* compile_tuple : ejecuta instruciones para expr list y mueve los elementos a el heap *)
     let rec compile_tuple (exprs : tag eexpr list) (count : int) : instruction list  =
       match exprs with
@@ -196,8 +200,10 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
         [IMov (Reg R11, init_R15)] @
         [IMov (RegOffset (R11, count), Reg RAX)] @ (* Lo pone en el heap *)
         (compile_tuple tail (count + 1)) (* Hace lo mismo con el resto *) in
+      request_memory req_bytes @ (* try gc *)
+      
       [ IMov (init_R15, Reg R15) ] @ (* moves heap pointer to stack *)
-      [ IAdd (Reg R15, Const (Int64.of_int ((tuple_size + 1) * 8)))] @ (* offsetea puntero de heap*)
+      [ IAdd (Reg R15, Const (req_bytes))] @ (* offsetea puntero de heap*)
       [ IMov (Reg R11, init_R15) ] @
       [ IMovq (RegOffset (R11, 0), Const (Int64.of_int tuple_size))] @ (* Ubica el numero de elementos *)
       (compile_tuple elist 1) @ (* Compila la tupla *)
@@ -334,7 +340,7 @@ let compile_prog (p : prog) : string =
   let finstrs, fenv, nenv = (compile_functions_alt tagged_flist) in (* Usar compile_functions o compile_functions_alt *)
   
   let heap_prelude = [ ICom("heap prelude") ] @
-  [ IMov(Reg R15, Reg RDI) ; IAdd(Reg R15, Const 23L) ; IMov(Reg R11, Const 0xfffffffffffffff8L); IAnd (Reg R15, Reg R11) ] in
+  [ IMov(Reg R15, Reg RDI) ] in (* heap is aligned in rtsys *)
   
   (* compile main expresion *)
   let instrs = (compile_expr tagged_expr empty_env fenv nenv) in
@@ -342,7 +348,7 @@ let compile_prog (p : prog) : string =
 
   (* variables internas *)
   let defsys_list, _ = List.split nenv in
-  let extern_list = [ "error" ; "error2" ] @ defsys_list in
+  let extern_list = [ "error" ; "error2"; "try_gc" ] @ defsys_list in
   let extern_string = (List.fold_left (fun res i -> res ^ sprintf "  extern %s\n" i) "" extern_list) in
 
   (* compile program *)

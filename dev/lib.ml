@@ -359,3 +359,10 @@ let caller_restore (num : int) : instruction list =
 (* generate instruction for call *)
 let caller_instrs (calli : instruction list) (args : instruction list list) : instruction list =
   caller_save @ (caller_args args) @ [ ICom("call function") ] @ calli @ (caller_restore (List.length args))
+
+
+let request_memory (bytes_req : int64) : instruction list =
+  caller_save  @ [IMov(Reg RDI, Reg R15); IMov(Reg RSI, Const bytes_req)] @
+  [IMov(Reg RDX, Reg RBP); IMov(Reg RCX, Reg RSP)] (* supongo que cur_frame y cur_rsp son rbp y rsp *)
+  @ [ICall "try_gc"; IMov (Reg R15, Reg RAX)] (* Si cambia alloc_ptr se actualiza valor de R15 *) 
+  @ caller_restore 0

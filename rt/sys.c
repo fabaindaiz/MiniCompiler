@@ -12,7 +12,7 @@ typedef uint64_t u64;
 
 /* configuration */
 u64 STACK_SIZE = 0x800000;
-u64 HEAP_SIZE = 16;
+u64 HEAP_SIZE = 1024;
 int USE_GC = 1;
 
 
@@ -28,6 +28,7 @@ extern void set_stack_bottom(u64* stack_bottom) asm("set_stack_bottom");
 const uint64_t BOOL_TAG   = 0x0000000000000001;
 const uint64_t TUPLE_TAG   = 0x000000000000005;
 const uint64_t CLOSURE_TAG   = 0x000000000000007;
+const uint64_t FORWARDER_TAG   = 0x000000000000003;
 const u64 BOOL_TRUE  = 0x8000000000000001; // These must be the same values
 const u64 BOOL_FALSE = 0x0000000000000001; // as chosen in compile.ml
 
@@ -141,7 +142,6 @@ void print_heaps(){
   printf("|=================\n\n");
 }
 
-
 u64* collect(u64* cur_frame, u64* cur_sp) {
   /* TBD: see https://en.wikipedia.org/wiki/Cheney%27s_algorithm */
   // swap from-space to-space
@@ -233,7 +233,7 @@ u64 max(u64 val1, u64 val2) {
 }
 
 u64 megamax(u64 v1, u64 v2, u64 v3, u64 v4, u64 v5, u64 v6, u64 v7, u64 v8){
-  return max(max(max(max(max(max(max(v1 , v2),v3),v4),v5),v6),v7),v8);
+  return max(max(max(v1, v2), max(v3, v4)), max(max(v5, v6), max(v7, v8)));
 }
 
 void print_result(u64 val) {
@@ -271,10 +271,10 @@ int main(int argc, char** argv) {
   u64* heap = (u64*)calloc((HEAP_SIZE * 2) + 15, sizeof(u64));
   HEAP_START = (u64*)(((u64)heap + 15) & ~0xF);
   /* TBD: initialize HEAP_MID, HEAP_END, FROM_SPACE, TO_SPACE */
-  HEAP_MID = 0;   /* TBD */
-  HEAP_END = 0;   /* TBD */
-  FROM_SPACE = 0; /* TBD */
-  TO_SPACE = 0;   /* TBD */
+  HEAP_MID = HEAP_START + HEAP_SIZE;   /* TBD */
+  HEAP_END = HEAP_START + HEAP_SIZE * 2;   /* TBD */
+  FROM_SPACE = HEAP_START; /* TBD */
+  TO_SPACE = HEAP_MID;   /* TBD */
 
   /* Go! */
   /* Q: when do you need to call `free(heap)`? */
