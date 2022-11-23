@@ -30,6 +30,11 @@ let extend_renv_reg (x : string * arg) (env : renv) : (renv) =
   let id, reg = x in
   ((id, reg) :: env)
 
+(* 
+let rec print_env (env : renv) : string =
+  match env with
+  | (id, reg) :: rest -> (sprintf "(%s, %s) " id (pp_arg reg)) ^ print_env rest
+  | _ -> ""  *)
 
 (* calculate an aprox number of used stack spaces *)
 let rec num_expr (expr : tag eexpr) : int =
@@ -197,15 +202,24 @@ let get_free_vars (e : tag eexpr) (l : string list) : string list =
       let l' = l @ (get_vars_list par l) in
       (get_free_vars_help body l')
     | ELamApp (fe, ael, _) -> (get_free_vars_help fe l) @ (get_free_vars_help_list ael l)
-    | ELetRec (recs, body, _) -> (get_free_vars_help_recs recs l) @ (get_free_vars_help body l)
+    | ELetRec (recs, body, _) ->
+      let vars = (get_free_vars_help_recs recs l) in
+      let names = get_letrec_names recs in
+      vars @ (get_free_vars_help body (names @ l)) (* body tiene acceso a nombres de lambdas *)
     and get_free_vars_help_list (elist: tag eexpr list) (l : string list) : string list =
       match elist with
       | [] -> []
       | e1::tail -> (get_free_vars_help e1 l) @ (get_free_vars_help_list tail l)
+    and get_letrec_names (elist : (string * string list * 'a eexpr * 'a) list) : string list =
+      match elist with
+      | [] -> []
+      | (name, _, _, _)::tail -> [name] @ get_letrec_names tail
     and get_free_vars_help_recs (elist : (string * string list * 'a eexpr * 'a) list) (l : string list) : string list =
       match elist with
       | [] -> []
-      | (_, _, e1, _)::tail -> (get_free_vars_help e1 l) @ (get_free_vars_help_recs tail l)
+      | (_, args, e1, _)::tail ->
+          let l' = args @ get_letrec_names elist @ l in (* name and params of letrec's lambdas should not be free vars *)
+          (get_free_vars_help e1 l') @ (get_free_vars_help_recs tail l)
     and get_vars_list (slist: string list) (l : string list) : string list =
       match slist with
       | [] -> []
