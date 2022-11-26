@@ -339,14 +339,16 @@ let compile_prog (p : prog) : string =
   
   let heap_prelude = [ ICom("heap prelude") ] @
   [ IMov(Reg R15, Reg RDI) ] in (* heap is aligned in rtsys *)
-  
+
+  let set_stack_bottom = [IMov (Reg RDI, Reg RBP); ICall("set_stack_bottom")] in
+
   (* compile main expresion *)
   let instrs = (compile_expr tagged_expr empty_env fenv nenv) in
-  let einstrs = (callee_instrs "our_code_starts_here" (heap_prelude @ instrs) (num_expr tagged_expr)) in
+  let einstrs = (callee_instrs "our_code_starts_here" (heap_prelude @ set_stack_bottom @ instrs) (num_expr tagged_expr)) in
 
   (* variables internas *)
   let defsys_list, _ = List.split nenv in
-  let extern_list = [ "error" ; "error2"; "try_gc" ] @ defsys_list in
+  let extern_list = [ "error" ; "error2"; "try_gc"; "set_stack_bottom" ] @ defsys_list in
   let extern_string = (List.fold_left (fun res i -> res ^ sprintf "  extern %s\n" i) "" extern_list) in
 
   (* compile program *)

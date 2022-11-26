@@ -12,7 +12,7 @@ typedef uint64_t u64;
 
 /* configuration */
 u64 STACK_SIZE = 0x800000;
-u64 HEAP_SIZE = 1024;
+u64 HEAP_SIZE = 48;
 int USE_GC = 1;
 
 
@@ -29,6 +29,7 @@ const uint64_t BOOL_TAG   = 0x0000000000000001;
 const uint64_t TUPLE_TAG   = 0x000000000000005;
 const uint64_t CLOSURE_TAG   = 0x000000000000007;
 const uint64_t FORWARDER_TAG   = 0x000000000000003;
+
 const u64 BOOL_TRUE  = 0x8000000000000001; // These must be the same values
 const u64 BOOL_FALSE = 0x0000000000000001; // as chosen in compile.ml
 
@@ -142,12 +143,73 @@ void print_heaps(){
   printf("|=================\n\n");
 }
 
+// verifica que puntero este entre ciertos márgenes
+bool is_valid_pointer(u64* reg){
+  return HEAP_START <= reg && reg < HEAP_END; 
+}
+
+// copia los elementos a los que apunta val al nuevo espacio y deja un valor forward en el antiguo espacio
+// retorna el objecto con su direccion (taggeada) en el nuevo espacio
+u64 move(u64 val, u64 size, uint64_t tag){
+  if ((((u64*)val)[0] & FORWARDER_TAG) == FORWARDER_TAG){
+    return (u64) (((u64*)val)[0] - FORWARDER_TAG + tag);
+  }
+
+  u64 forward = (u64) ALLOC_PTR + FORWARDER_TAG;
+  for (size_t i = 0; i < size; i++)
+  {
+    ALLOC_PTR[i] = ((u64*)(val ^ tag))[i];
+  }
+  u64 new_val = ((u64) ALLOC_PTR) + tag;
+  ALLOC_PTR += size;
+  ((u64*)val)[0] = forward;
+  return new_val;
+}
+
+// revisa el contenido de reg y si es una referencia a un objeto lo copia al to_space, luego iterativamente 
+// busca referencias a objetos entre los valores copiados y mueve esos objetos tambien
+void scan_reg(u64* reg) {
+  do {
+    u64 val = *reg; 
+    if (is_tuple(val) && is_valid_pointer((u64*)(val ^ TUPLE_TAG))){
+      u64 size = *((u64*)(val ^ TUPLE_TAG));
+      *reg = move(val, size+1, TUPLE_TAG);
+      
+    }
+    else if(is_closure(val) && is_valid_pointer((u64*)(val ^ CLOSURE_TAG))){
+      u64 size = ((u64*)(val ^ CLOSURE_TAG))[2];
+      *reg = move(val, size+3, CLOSURE_TAG);
+    }
+
+    reg = ++SCAN_PTR;
+  }
+  while (ALLOC_PTR > SCAN_PTR);
+}
+
 u64* collect(u64* cur_frame, u64* cur_sp) {
   /* TBD: see https://en.wikipedia.org/wiki/Cheney%27s_algorithm */
   // swap from-space to-space
-  // init spaces
+  u64* tmp = TO_SPACE;
+  TO_SPACE = FROM_SPACE;
+  FROM_SPACE = tmp;
+  // init spaces 
+  ALLOC_PTR = FROM_SPACE;
+  SCAN_PTR = ALLOC_PTR;
   // scan stack and copy roots
   // scan objects in the heap
+  while(true){
+    for (u64 i = 0; i < (u64)(cur_frame - cur_sp); i++) {
+
+      scan_reg(cur_sp + i);
+    }
+    
+    cur_sp = cur_frame;
+    if(cur_sp >= STACK_BOTTOM){
+      break;
+    }
+    cur_frame = (u64*)(cur_sp[0]);
+    cur_sp += 2;
+  }
   // clean old space
   return ALLOC_PTR;
 }
