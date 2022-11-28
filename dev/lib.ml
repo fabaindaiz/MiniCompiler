@@ -1,7 +1,11 @@
-(** Lib **)
-open Printf
+(* Fun *)
 open Asm
 open Ast
+
+
+let bool_tag = 1L
+let tuple_tag = 5L
+let closure_tag = 7L
 
 
 (* data structure to attach registers to variables *)
@@ -10,7 +14,6 @@ type renv = (string * arg) list
 type fenv = (string * int) list
 (* data structure to save functions names *)
 type nenv = (string * string) list
-
 
 let empty_env : renv = []
 
@@ -36,97 +39,23 @@ let rec print_env (env : renv) : string =
   | (id, reg) :: rest -> (sprintf "(%s, %s) " id (pp_arg reg)) ^ print_env rest
   | _ -> ""  *)
 
-(* calculate an aprox number of used stack spaces *)
-let rec num_expr (expr : tag eexpr) : int =
-  match expr with
-  | ENum (_, _) -> 0
-  | EBool (_, _) -> 0
-  | ETuple (elist, _) -> 1 + (num_expr_list elist)
-  | EId (_, _) -> 0
-  | EPrim1 (_, e1, _) -> (num_expr e1)
-  | EPrim2 (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
-  | ELet (_, e1, e2, _) -> 1 + (max (num_expr e1) (num_expr e2))
-  | EIf (c, e1, e2, _) -> (max (num_expr c) (max (num_expr e1) (num_expr e2)))
-  | EApp (_, elist, _) -> (num_expr_list elist)
-  | ESet (t, n, v, _) -> 2 + (max (num_expr t) (max (num_expr n) (num_expr v)))
-  | ELambda (par, _ , _) -> (num_expr_args (List.length par)) (* body se ejecuta despues de actualizar RBP *)
-  | ELamApp (fe, ael, _) -> 1 + max (num_expr fe) (num_expr_list ael)
-  | ELetRec (recs, body, _) -> (List.length recs) + max (num_expr_recs recs) (num_expr body)
-  and num_expr_args (arg_num : int) : int =
-    if arg_num >= 7 then arg_num - 6 else 0
-  and num_expr_list (elist: tag eexpr list) : int =
-    match elist with
-    | [] -> 0
-    | e1::tail -> (max (num_expr e1) (num_expr_list tail))
-  and num_expr_recs (elist: (string * string list * 'a eexpr * 'a) list) : int =
-    match elist with
-    | [] -> 0
-    | (_, _, e1, _)::tail -> (max (num_expr e1) (num_expr_recs tail))
 
-
-let bool_tag = 1L
-let tuple_tag = 5L
-let closure_tag = 7L
-
-let err_not_number = 1L
-let err_not_boolean = 2L
-let err_not_tuple = 3L
-let err_not_closure = 4L
-
-(* apply register test *)
-let error_asm (error : int64) (reg : reg) (label : string) : instruction list = 
-  [ IMov(Reg RDI, Const error) ; IMov(Reg RSI, Reg reg) ] @ (* Si no la cumple, prepara el error *)
-  [ ICall("error") ; ILabel(label) ] (* Si la cumple, salta al label *)
-
-let type_error_check (t : etype) (reg : reg) (tag : tag) (num : int): instruction list =
-  let label = sprintf "test_%d_%d" tag num in
-  [ ICom (sprintf "type %s" label) ] @
+(* RAX : actual value *)
+let type_error_check (t : etype): instruction list =
   match t with
   | EAny -> []
-  | ENum -> (* 0x...0 & 0x1 = 0x0 *)
-    [ ITest(Reg reg, Const 1L) ; IJz(label) ] @
-    (error_asm err_not_number reg label)
-  | EBool -> (*  (0x...1 - 0x1) & 0x111 = 0x0 *)
-    [ IMov(Reg R11, Reg reg) ; ISub(Reg R11, Const bool_tag) ] @
-    [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
-    (error_asm err_not_boolean reg label)
-  | ETuple -> (* (0x...11 - 0x11) & 0x111 = 0x0 *)
-    [ IMov(Reg R11, Reg reg) ; ISub(Reg R11, Const tuple_tag) ] @
-    [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
-    (error_asm err_not_tuple reg label)
-  | EClosure -> (* (0x...111 - 0x111) & 0x111 = 0x0 *)
-    [ IMov(Reg R11, Reg reg) ; ISub(Reg R11, Const closure_tag) ] @
-    [ ITest(Reg R11, Const 7L) ; IJz(label) ] @
-    (error_asm err_not_closure reg label)
+  | ENum -> [ ICall("test_num") ]
+  | EBool -> [ ICall("test_bool") ]
+  | ETuple -> [ ICall("test_tuple") ]
+  | EClosure -> [ ICall("test_closure") ]
 
+(* RAX : actual size, 11 : size limit, reg : original tuple *)
+let error_tuple_bad_index (reg : arg) : instruction list =
+  [ IPush(Reg RDI) ; IMov(Reg RDI, reg) ; ICall("test_tuple_bad_index") ; IPop(Reg RDI) ]
 
-let err_bad_index_low = 1L
-let err_bad_index_high = 2L
-let err_arity_mismatch = 3L
-
-let error2_asm (error : int64) (reg1 : arg) (reg2 : arg) (label : string) : instruction list = 
-  [ IMov(Reg RDI, Const error) ; IMov(Reg RSI, reg1) ; IMov(Reg RDX, reg2) ] @ (* Si no la cumple, prepara el error *)
-  [ ICall("error2") ; ILabel(label) ] (* Si la cumple, salta al label *)
-
-let error_tuple_bad_index (reg1 : arg) (reg2 : arg) (lim : arg) (tag : tag) : instruction list =
-  let low_label = sprintf "test_%d_1" tag in
-  let high_label = sprintf "test_%d_2" tag in
-  [ ICom (sprintf "indec %s" low_label) ] @
-  [ ICmp (reg1, Const 0L) ; IJge(low_label) ; ISal (reg1, Const 1L) ] @
-  (error2_asm err_bad_index_low reg1 reg2 low_label) @
-  [ ICom (sprintf "index %s" high_label) ] @
-  [ ICmp (reg1, lim) ; IJl(high_label) ; ISal (reg1, Const 1L) ] @
-  (error2_asm err_bad_index_high reg1 reg2 high_label)
-
-let error_arity_mismatch (reg1 : arg) (reg2 : arg) (tag : tag) (num : int) : instruction list =
-  let label = sprintf "test_%d_%d" tag num in
-  [ ICom (sprintf "arity %s" label) ] @
-  [ ICmp (reg1, reg2) ; IJz(label) ] @ (error2_asm err_arity_mismatch reg1 reg2 label)
-
-
-(* compile a tag expr list *)
-let compile_elist (compile_expr) (exprs : tag eexpr list) (env : renv) (fenv : fenv) (nenv : nenv) : instruction list list =
-  List.fold_left (fun res i -> res @ [ (compile_expr i env fenv nenv) ]) [] exprs
+(* R11 : actual arity, reg : expected arity *)
+let error_arity_mismatch (reg : arg) : instruction list =
+  [ IPush(Reg RDI) ; IMov(Reg RDI, reg) ; ICall("test_arity_mismatch") ; IPop(Reg RDI) ]
 
 
 let rsp_mask = 0xfffffff0
@@ -134,152 +63,6 @@ let rsp_mask = 0xfffffff0
 (* make RSP value multiple of 16, rounding up *)
 let rsp_offset (num : int) : arg =
   Const (Int64.of_int ((num + 8) land rsp_mask))
-
-
-(* pack the closure arguments *)
-let closure_pack (l : string list) (reg : reg) (env : renv) : instruction list =
-  let len = (Int64.of_int (List.length l)) in
-  [ IMovq (RegOffset(reg, 2), Const len) ] @
-  let rec update_reg_help (l : string list) (reg : reg) (env : renv) (count : int) : instruction list =
-    (match l with
-    | [] -> []
-    | id::tail ->
-      (match (List.assoc_opt id env) with
-      | Some arg ->
-        [ IMov (Reg R11, arg) ; IMov (RegOffset(reg, count), Reg R11) ] @
-        (update_reg_help tail reg env (count+1))
-      | None -> failwith (sprintf "unbound variable %s in renv" id) ) ) in
-  (update_reg_help l reg env 3)
-
-(* unpack the closure arguments *)
-let closure_unpack (l : string list) : instruction list =
-  [ ICom ("unpack closure") ] @ [ ISub (Reg RSP, rsp_offset ((List.length l) * 8)) ] @
-  [ IMov (Reg R11, Reg RAX) ] @ (* untagged lambda should be already in RAX *)
-  let rec unpack_reg_help (l : string list) (count1 : int) (count2 : int): instruction list =
-    (match l with
-    | [] -> []
-    | _::tail ->
-        [ IMov (Reg RAX, RegOffset(R11, count1)) ; IMov (RegOffset(RBP, count2), Reg RAX) ] @
-        (unpack_reg_help tail (count1 +1) (count2 -1))  ) in
-  (unpack_reg_help l 3 (-1))
-
-(* update lambda enviroment with closure arguments *)
-let closure_env (l : string list) (env : renv) : renv =
-  let rec update_env_help (l : string list) (env : renv) (count : int) : renv =
-    (match l with
-    | [] -> env
-    | id::tail ->
-      let env' = (List.remove_assoc id env) in 
-      (update_env_help tail ((id, RegOffset(RBP, count))::env') (count-1)) ) in
-  (update_env_help l env (-1))
-
-
-let remove_list_duplicates (xs : 'a list) : 'a list = 
-  let cons_uniq (xs : 'a list) (x : 'a) : 'a list = if List.mem x xs then xs else x :: xs in
-  List.rev (List.fold_left cons_uniq [] xs)
-
-
-(* get a list of free vars *)
-let get_free_vars (e : tag eexpr) (l : string list) : string list =
-  let rec get_free_vars_help (e : tag eexpr) (l : string list) : string list =
-    match e with
-    | ENum (_, _) -> []
-    | EBool (_, _) -> []
-    | ETuple (elist, _) -> (get_free_vars_help_list elist l)
-    | EId (s, _) ->
-      (match List.mem s l with
-      | true -> []
-      | false -> [s] )
-    | EPrim1 (_, e1, _) -> (get_free_vars_help e1 l)
-    | EPrim2 (_, e1, e2, _) -> (get_free_vars_help e1 l) @ (get_free_vars_help e2 l)
-    | ELet (id, e, body, _) ->
-      let l' = l @ [id] in
-      (get_free_vars_help e l) @ (get_free_vars_help body l')
-    | EIf (c, t, e, _) -> (get_free_vars_help c l) @ (get_free_vars_help t l) @ (get_free_vars_help e l)
-    | EApp (_, p, _) -> (get_free_vars_help_list p l)
-    | ESet (t, n, v, _) -> (get_free_vars_help t l) @ (get_free_vars_help n l) @ (get_free_vars_help v l)
-    | ELambda (par, body, _) ->
-      let l' = l @ (get_vars_list par l) in
-      (get_free_vars_help body l')
-    | ELamApp (fe, ael, _) -> (get_free_vars_help fe l) @ (get_free_vars_help_list ael l)
-    | ELetRec (recs, body, _) ->
-      let vars = (get_free_vars_help_recs recs l) in
-      let names = get_letrec_names recs in
-      vars @ (get_free_vars_help body (names @ l)) (* body tiene acceso a nombres de lambdas *)
-    and get_free_vars_help_list (elist: tag eexpr list) (l : string list) : string list =
-      match elist with
-      | [] -> []
-      | e1::tail -> (get_free_vars_help e1 l) @ (get_free_vars_help_list tail l)
-    and get_letrec_names (elist : (string * string list * 'a eexpr * 'a) list) : string list =
-      match elist with
-      | [] -> []
-      | (name, _, _, _)::tail -> [name] @ get_letrec_names tail
-    and get_free_vars_help_recs (elist : (string * string list * 'a eexpr * 'a) list) (l : string list) : string list =
-      match elist with
-      | [] -> []
-      | (_, args, e1, _)::tail ->
-          let l' = args @ get_letrec_names elist @ l in (* name and params of letrec's lambdas should not be free vars *)
-          (get_free_vars_help e1 l') @ (get_free_vars_help_recs tail l)
-    and get_vars_list (slist: string list) (l : string list) : string list =
-      match slist with
-      | [] -> []
-      | s::tail -> [s] @ (get_vars_list tail l) in
-  (remove_list_duplicates (get_free_vars_help e l))
-
-
-(* Compila las clausuras y genera el ambiente para los lambdas de un letrec *)
-let rec letrec_env (elist : (string * string list * 'a eexpr * 'a) list) (env : renv) : (renv * instruction list) =
-  match elist with
-  | [] -> (env, [])
-  | (name, params, body, tag)::tail ->
-    let (env', reg_offset) = (extend_renv name env) in
-    let (env'', instrs) = (letrec_env tail env') in
-
-    let expr = (ELambda (params, body, tag)) in
-    let free_vars = (get_free_vars expr []) in
-    let heap_offset = (Int64.of_int (((List.length free_vars) + 3) * 8)) in
-
-    (env'' , [ IMov (Reg RAX, Reg R15) ; IAdd (Reg RAX, Const closure_tag) ] @
-    [ IMov (RegOffset(RBP, reg_offset), Reg RAX) ; IAdd (Reg R15, Const heap_offset) ] @ instrs)
-
-
-let get_overwrite_reg (instrs : instruction list) : arg list =
-  let rec get_overwrited_reg_help (instrs : instruction list) (l : arg list) : arg list =
-    match instrs with
-    | [] -> []
-    | instr::tail ->
-      (match instr with
-      | IMov(Reg RAX, x) ->
-        (match List.mem x l with
-        | true -> [x]
-        | false -> [] ) @
-        (get_overwrited_reg_help tail l)
-      | IMov(x, _) ->
-        let l' = l @ [x] in
-        (match x with
-        | Reg R9 | Reg R8 | Reg RCX | Reg RDX | Reg RDI | Reg RSI -> (get_overwrited_reg_help tail l')
-        | _ -> (get_overwrited_reg_help tail l) )
-      | _ -> (get_overwrited_reg_help tail l) ) in
-  (remove_list_duplicates (get_overwrited_reg_help instrs []))
-
-let function_env (l : arg list) (env : renv) =
-  let rec function_env_help (l : arg list) (env : renv) : renv =
-    match env with
-    | [] -> []
-    | (id, reg)::tail ->
-      (match List.mem reg l with
-      | true ->
-        (match reg with
-        | Reg R9 -> [(id, RegOffset(RSP, 5))]
-        | Reg R8 -> [(id, RegOffset(RSP, 4))]
-        | Reg RCX -> [(id, RegOffset(RSP, 3))]
-        | Reg RDX -> [(id, RegOffset(RSP, 2))]
-        | Reg RSI -> [(id, RegOffset(RSP, 1))]
-        | Reg RDI -> [(id, RegOffset(RSP, 0))]
-        | _ -> [(id, reg)] ) @ (function_env_help l tail)
-      | false ->
-        [(id, reg)] @ (function_env_help l tail) ) in
-  (function_env_help l env)
 
 
 (* prelude for callee *)
@@ -296,15 +79,15 @@ let callee_instrs (name : string) (instrs : instruction list) (num : int) : inst
   (callee_start name num) @ instrs @ callee_end
 
 
-let ctype_error (instr : instruction list) (ctype : ctype) (tag : tag) (num : int) : instruction list =
+let ctype_error (instr : instruction list) (ctype : ctype) : instruction list =
   match ctype with
   | CAny -> []
-  | CInt -> instr @ (type_error_check ENum RAX tag num)
-  | CBool -> instr @ (type_error_check EBool RAX tag num)
-  | CTuple _ -> instr @ (type_error_check ETuple RAX tag num)
+  | CInt -> instr @ (type_error_check ENum)
+  | CBool -> instr @ (type_error_check EBool)
+  | CTuple _ -> instr @ (type_error_check ETuple)
 
 (* c calls args type verification *)
-let ccall_args (args : ctype list) (tag : tag) : (instruction list) =
+let ccall_args (args : ctype list) : (instruction list) =
   let rec ccall_args_help (args : ctype list) (count : int) = 
     match args with
     | [] -> []
@@ -318,12 +101,12 @@ let ccall_args (args : ctype list) (tag : tag) : (instruction list) =
       | 6 -> [ IMov(Reg RAX, Reg R9) ]
       | _ -> [ IMov(Reg RAX, RegOffset(RBP, count-5)) ; IPush(Reg RAX) ] ) in
       (* arg 7 está en rbp + 16 y de ahi subiendo, como se movio la pila hay que volver a poner el valor *)
-      (ctype_error instr ctype tag count) @ (ccall_args_help tail (count+1)) in
+      (ctype_error instr ctype) @ (ccall_args_help tail (count+1)) in
     (ccall_args_help args 1)
 
 (* defsys callee instructions *)
-let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) (tag : tag) : instruction list =
-  let instr = (ccall_args type_list tag) @ [ ICall(fun_name) ] @ (ctype_error [] type_ret tag 0) in
+let callee_defsys (call_name : string) (fun_name : string) (type_list : ctype list) (type_ret : ctype) : instruction list =
+  let instr = (ccall_args type_list) @ [ ICall(fun_name) ] @ (ctype_error [] type_ret) in
   (callee_instrs call_name instr 0)
 
 
@@ -376,7 +159,59 @@ let caller_instrs (calli : instruction list) (args : instruction list list) : in
 
 
 let request_memory (bytes_req : int64) : instruction list =
-  caller_save  @ [IMov(Reg RDI, Reg R15); IMov(Reg RSI, Const bytes_req)] @
-  [IMov(Reg RDX, Reg RBP); IMov(Reg RCX, Reg RSP)] (* supongo que cur_frame y cur_rsp son rbp y rsp *)
-  @ [ICall "try_gc"; IMov (Reg R15, Reg RAX)] (* Si cambia alloc_ptr se actualiza valor de R15 *) 
-  @ caller_restore 0
+  [ IMov(Reg R11, Const bytes_req) ; ICall("request_memory") ]
+
+let request_memory_defsys : instruction list =
+  let instrs = caller_save @
+    [ IMov(Reg RDI, Reg R15) ; IMov(Reg RSI, Reg R11) ] @
+    [ IMov(Reg RDX, Reg RBP) ; IMov(Reg RCX, Reg RSP)] @ (* supongo que cur_frame y cur_rsp son rbp y rsp *)
+    [ ICall("try_gc") ; IMov(Reg R15, Reg RAX)] @ (* Si cambia alloc_ptr se actualiza valor de R15 *)
+    (caller_restore 0) in
+  (callee_instrs "request_memory" instrs 0)
+
+
+let err_not_number = 1L
+let err_not_boolean = 2L
+let err_not_tuple = 3L
+let err_not_closure = 4L
+
+let error_asm (error : int64) (label : string) : instruction list = 
+  [ IJz(label) ; IMov(Reg RSI, Reg RAX) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
+  [ ICall("error") ; ILabel(label) ] (* Si la cumple, salta al label *)
+
+let type_error_defsys : instruction list =
+  let instrs = (* 0x...0 & 0x1 = 0x0 *)
+    [ ITest(Reg RAX, Const 1L) ] @ (error_asm err_not_number "label_num") in
+  (callee_instrs "test_num" instrs 0) @
+  let instrs = (*  (0x...1 - 0x1) & 0x111 = 0x0 *)
+    [ IMov(Reg R11, Reg RAX) ; ISub(Reg R11, Const bool_tag) ] @
+    [ ITest(Reg R11, Const 7L) ] @ (error_asm err_not_boolean "label_bool") in
+  (callee_instrs "test_bool" instrs 0) @
+  let instrs = (* (0x...11 - 0x11) & 0x111 = 0x0 *)
+    [ IMov(Reg R11, Reg RAX) ; ISub(Reg R11, Const tuple_tag) ] @
+    [ ITest(Reg R11, Const 7L) ] @ (error_asm err_not_tuple "label_tuple") in
+  (callee_instrs "test_tuple" instrs 0) @
+  let instrs = (* (0x...111 - 0x111) & 0x111 = 0x0 *)
+    [ IMov(Reg R11, Reg RAX) ; ISub(Reg R11, Const closure_tag) ] @
+    [ ITest(Reg R11, Const 7L) ] @ (error_asm err_not_closure "label_closure") in
+  (callee_instrs "test_closure" instrs 0)
+
+
+let err_tuple_bad_index = 1L
+let err_arity_mismatch = 2L
+
+let error2_asm (error : int64) (label : string) : instruction list = 
+  [ IMov(Reg RDX, Reg RDI) ; IMov(Reg RSI, Reg RAX) ; IMov(Reg RDI, Const error) ] @ (* Si no la cumple, prepara el error *)
+  [ ICall("error2") ; ILabel(label) ] (* Si la cumple, salta al label *)
+
+let type_error2_defsys : instruction list =
+  let instrs =
+    [ ICmp (Reg RAX, Const 0L) ; IJl("label_bad_index") ] @
+    [ ICmp (Reg RAX, Reg R11) ; IJge("label_bad_index") ] @
+    [ IJmp("label_index") ; ILabel("label_bad_index") ; ISal (Reg RAX, Const 1L) ] @
+    (error2_asm err_tuple_bad_index "label_index") in
+  (callee_instrs "test_tuple_bad_index" instrs 0) @
+  let instrs =
+    [ ICmp (Reg R11, Reg RDI) ; IJz("label_arity") ; IMov (Reg RAX, Reg R11) ] @
+    (error2_asm err_arity_mismatch "label_arity") in
+  (callee_instrs "test_arity_mismatch" instrs 0)

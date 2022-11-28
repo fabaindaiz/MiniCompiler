@@ -1,4 +1,4 @@
 (library
  (name dev)
- (modules ast asm compile lib interp parse)
+ (modules ast asm compile util lib interp parse)
  (libraries containers))

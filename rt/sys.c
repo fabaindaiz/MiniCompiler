@@ -254,9 +254,8 @@ void error(int errCode, u64 val) {
 }
 
 
-const int ERR_BAD_INDEX_LOW = 1;
-const int ERR_BAD_INDEX_HIGH = 2;
-const int ERR_ARITY_MISMATCH = 3;
+const int ERR_TUPLE_BAD_INDEX = 1;
+const int ERR_ARITY_MISMATCH = 2;
 
 void error2(int errCode, u64 val1, u64 val2) {
   char buffer1[50];
@@ -264,9 +263,7 @@ void error2(int errCode, u64 val1, u64 val2) {
   get_value(buffer1, val1);
   get_value(buffer2, val2);
 
-  if (errCode == ERR_BAD_INDEX_LOW) {
-    fprintf(stderr, "Index out of bounds: Tried to access index %s of %s", buffer1, buffer2);
-  } else if (errCode == ERR_BAD_INDEX_HIGH) {
+  if (errCode == ERR_TUPLE_BAD_INDEX) {
     fprintf(stderr, "Index out of bounds: Tried to access index %s of %s", buffer1, buffer2);
   } else if (errCode == ERR_ARITY_MISMATCH) {
     fprintf(stderr, "Arity mismatch: closure expected %lu arguments but got %lu", val1, val2);
