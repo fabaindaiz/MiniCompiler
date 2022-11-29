@@ -136,16 +136,23 @@ u64* collect(u64* cur_frame, u64* cur_sp) {
 }
 
 
+// Used for debugging purposes
+int64_t HEAP_LAST;
+
 /* trigger GC if enabled and needed, out-of-memory error if insufficient */
 u64* try_gc(u64* alloc_ptr, u64 words_needed, u64* cur_frame, u64* cur_sp) {
   if (DEBUG==1) {
-    printf("| Debug : available space %ld words\n", (int64_t)((FROM_SPACE + HEAP_SIZE) - (alloc_ptr + words_needed)));
+    HEAP_LAST = (FROM_SPACE + HEAP_SIZE) - (alloc_ptr + words_needed);
+    printf("| Debug: available %ld required %ld\n", HEAP_LAST + words_needed, words_needed);
   }
   if (USE_GC==1 && alloc_ptr + words_needed > FROM_SPACE + HEAP_SIZE) {
     printf("| need memory: GC!\n");
     alloc_ptr = collect(cur_frame, cur_sp);
     if (DEBUG==1) {
-      printf("| Debug : available space %ld words\n", (int64_t)((FROM_SPACE + HEAP_SIZE) - (alloc_ptr + words_needed)));
+      int64_t tmp = (FROM_SPACE + HEAP_SIZE) - (alloc_ptr + words_needed);
+      printf("| Debug: GC freed %ld words\n", tmp - HEAP_LAST);
+      printf("| Debug: available %ld required %ld\n", tmp + words_needed, tmp);
+      HEAP_LAST = tmp;
     }
   }
   if (alloc_ptr + words_needed > FROM_SPACE + HEAP_SIZE) {

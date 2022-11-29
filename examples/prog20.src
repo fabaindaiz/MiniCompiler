@@ -1,0 +1,26 @@
+(
+    (def (f)
+        (+ 
+            (let (t 
+                (tup 2 (tup 3 4)))
+            (let (x 
+                (get (get (tup 1 t) 1) 0))
+            x))
+
+            (let (z 
+                (tup 100))
+            (get z 0))
+        ))
+    
+    (let (res (f))
+        (+ 
+            res
+            (let (z
+                (tup 100))
+            (let (w
+                (tup 3 4 5 6))
+            (get z 0)))
+        ))
+)
+            
+            
