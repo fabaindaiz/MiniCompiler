@@ -1,3 +1,4 @@
+/* Sys */
 #include "gc.c"
 
 
@@ -31,6 +32,7 @@ u64 max(u64 val1, u64 val2) {
 u64 megamax(u64 v1, u64 v2, u64 v3, u64 v4, u64 v5, u64 v6, u64 v7, u64 v8){
   return max(max(max(v1, v2), max(v3, v4)), max(max(v5, v6), max(v7, v8)));
 }
+
 
 void print_result(u64 val) {
   char buffer[50];
@@ -78,6 +80,6 @@ int main(int argc, char** argv) {
   print_result(result);
   printf("\n");
   
-  free(HEAP_START);
+  free(heap);
   return 0;
 }

@@ -1,3 +1,4 @@
+/* Gc */
 #include "lib.c"
 
 
@@ -5,6 +6,7 @@
 u64 STACK_SIZE = 0x800000;
 u64 HEAP_SIZE = 48;
 int USE_GC = 1;
+int DEBUG = 0;
 
 
 /* GC */
@@ -16,6 +18,20 @@ u64* FROM_SPACE;
 u64* ALLOC_PTR = 0;
 u64* SCAN_PTR = 0;
 u64* STACK_BOTTOM = 0;
+
+
+void set_stack_bottom(u64* stack_bottom) {
+  STACK_BOTTOM = stack_bottom;
+}
+
+bool is_heap_ptr(u64 val){
+  return (u64*)val < HEAP_END && (u64*)val >= HEAP_START;
+}
+
+// verifica que puntero este entre ciertos márgenes
+bool is_valid_pointer(u64* reg){
+  return reg < HEAP_END && reg >= HEAP_START ; 
+}
 
 
 void print_stack(u64* rbp, u64* rsp) {
@@ -50,20 +66,6 @@ void print_heaps(){
   printf("|=======HEAP 2==========\n");
   print_heap(HEAP_MID, HEAP_END);
   printf("|=================\n\n");
-}
-
-
-void set_stack_bottom(u64* stack_bottom) {
-  STACK_BOTTOM = stack_bottom;
-}
-
-bool is_heap_ptr(u64 val){
-  return (u64*)val < HEAP_END && (u64*)val >= HEAP_START;
-}
-
-// verifica que puntero este entre ciertos márgenes
-bool is_valid_pointer(u64* reg){
-  return HEAP_START <= reg && reg < HEAP_END; 
 }
 
 
@@ -102,7 +104,7 @@ void scan_reg(u64* reg) {
 
     reg = ++SCAN_PTR;
   }
-  while (ALLOC_PTR > SCAN_PTR);
+  while (SCAN_PTR < ALLOC_PTR);
 }
 
 u64* collect(u64* cur_frame, u64* cur_sp) {
@@ -136,9 +138,15 @@ u64* collect(u64* cur_frame, u64* cur_sp) {
 
 /* trigger GC if enabled and needed, out-of-memory error if insufficient */
 u64* try_gc(u64* alloc_ptr, u64 words_needed, u64* cur_frame, u64* cur_sp) {
+  if (DEBUG==1) {
+    printf("| Debug : available space %ld words\n", (int64_t)((FROM_SPACE + HEAP_SIZE) - (alloc_ptr + words_needed)));
+  }
   if (USE_GC==1 && alloc_ptr + words_needed > FROM_SPACE + HEAP_SIZE) {
     printf("| need memory: GC!\n");
     alloc_ptr = collect(cur_frame, cur_sp);
+    if (DEBUG==1) {
+      printf("| Debug : available space %ld words\n", (int64_t)((FROM_SPACE + HEAP_SIZE) - (alloc_ptr + words_needed)));
+    }
   }
   if (alloc_ptr + words_needed > FROM_SPACE + HEAP_SIZE) {
     printf("| Error: out of memory!\n\n");

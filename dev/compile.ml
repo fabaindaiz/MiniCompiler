@@ -191,7 +191,8 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
     let (env', reg_offset) = extend_renv (sprintf "temp_%d" tag) env in
     let init_R15 = RegOffset (RBP, reg_offset) in
     let tuple_size = List.length elist in
-    let req_bytes = Int64.of_int ((tuple_size + 1) * 8) in
+    let size = tuple_size + 1 in
+    let req_bytes = Int64.of_int (size * 8) in
     (* compile_tuple : ejecuta instruciones para expr list y mueve los elementos a el heap *)
     let rec compile_tuple (exprs : tag eexpr list) (count : int) : instruction list  =
       match exprs with
@@ -202,7 +203,7 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
         [IMov (RegOffset (R11, count), Reg RAX)] @ (* Lo pone en el heap *)
         (compile_tuple tail (count + 1)) (* Hace lo mismo con el resto *) in
 
-      (request_memory req_bytes) @ (* try gc *)
+      (request_memory (Int64.of_int size)) @ (* try gc *)
       
       [ IMov (init_R15, Reg R15) ] @ (* moves heap pointer to stack *)
       [ IAdd (Reg R15, Const (req_bytes))] @ (* offsetea puntero de heap*)
@@ -225,9 +226,10 @@ let rec compile_expr (e : tag eexpr) (env : renv) (fenv : fenv) (nenv : nenv): i
   
   | ELambda (params, body, tag) ->
     let free_vars = (get_free_vars e []) in
-    let heap_offset= (Int64.of_int (((List.length free_vars) + 3) * 8)) in
+    let size = (List.length free_vars) + 3 in
+    let heap_offset= (Int64.of_int (size * 8)) in
 
-    request_memory heap_offset @ (* try gc *)
+    (request_memory (Int64.of_int size)) @ (* try gc *)
     (compile_lambda compile_expr R15 params body tag env fenv nenv) @
     [ IAdd (Reg R15, Const heap_offset) ] (* set func label at pos 1 *)
     
@@ -354,7 +356,7 @@ let compile_prog (p : prog) : string =
   let extern_list = [ "error" ; "error2"; "try_gc"; "set_stack_bottom" ] @ defsys_list in
   let extern_string = (List.fold_left (fun res i -> res ^ sprintf "  extern %s\n" i) "" extern_list) in
 
-  (* generate error function instructions*)
+  (* generate system defined function instructions*)
   let sysdef_instrs = request_memory_defsys @ type_error_defsys @ type_error2_defsys in
 
   (* compile program *)

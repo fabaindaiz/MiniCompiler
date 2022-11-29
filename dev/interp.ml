@@ -1,6 +1,6 @@
 (** Interpreter **)
-open Ast
 open Printf
+open Ast
 open Parse
 
 exception RTError of string
