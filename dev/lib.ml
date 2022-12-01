@@ -51,11 +51,11 @@ let type_error_check (t : etype): instruction list =
 
 (* RAX : actual size, 11 : size limit, reg : original tuple *)
 let error_tuple_bad_index (reg : arg) : instruction list =
-  [ IPush(Reg RDI) ; IMov(Reg RDI, reg) ; ICall("test_tuple_bad_index") ; IPop(Reg RDI) ]
+  [ IPush(Reg RDI) ; IPush(Reg RSI) ; IMov(Reg RDI, reg) ; ICall("test_tuple_bad_index"); IPop(Reg RSI) ; IPop(Reg RDI) ]
 
 (* R11 : actual arity, reg : expected arity *)
 let error_arity_mismatch (reg : arg) : instruction list =
-  [ IPush(Reg RDI) ; IMov(Reg RDI, reg) ; ICall("test_arity_mismatch") ; IPop(Reg RDI) ]
+  [ IPush(Reg RDI) ; IPush(Reg RSI) ; IMov(Reg RDI, reg) ; ICall("test_arity_mismatch"); IPop(Reg RSI) ; IPop(Reg RDI) ]
 
 
 let rsp_mask = 0xfffffff0
