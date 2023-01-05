@@ -1,0 +1,10 @@
+NAME: lambda 1
+DESCRIPTION: evaluates a function declaration after saving vars in stack
+SRC:
+(
+  (def (f x) (+ x -1))
+  (let (f (lambda (x) (if x 7 13)))
+    (tup (@ f true) (f 3)))
+)
+EXPECTED:
+|ORACLE

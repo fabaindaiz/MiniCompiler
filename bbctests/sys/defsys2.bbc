@@ -1,0 +1,10 @@
+NAME: C calls 2 (print)
+SRC:
+(
+  (defsys print any -> any)
+  (add1 (print (add1 (print (+ 10 2)))))
+)
+EXPECTED:
+> 12
+> 13
+14

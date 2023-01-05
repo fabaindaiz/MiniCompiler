@@ -1,0 +1,8 @@
+NAME: let closure
+DESCRIPTION: evaluates a let-binding with lambda
+SRC:
+(let (a 10)
+ (let (b 4)
+  ( @ (lambda (x) (if (not true) x (+ a b))) 1 )))
+EXPECTED:
+14

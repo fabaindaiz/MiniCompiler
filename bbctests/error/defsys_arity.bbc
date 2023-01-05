@@ -1,0 +1,10 @@
+NAME: C calls (print)
+DESCRIPTION: evaluates a program with function error
+STATUS: CT error
+SRC:
+(
+  (defsys print any -> any)
+  (print 2 false)
+)
+EXPECTED:
+Arity mismatch: print expected 1 arguments but got 2

@@ -1,0 +1,6 @@
+NAME: add
+DESCRIPTION: evaluates a nested addition
+SRC:
+(+ (+ 2 3) (+ 4 3))
+EXPECTED:
+12

@@ -1,0 +1,6 @@
+NAME: lte 2
+DESCRIPTION: evaluates a less than
+SRC:
+(<= (sub1 5) 5)
+EXPECTED:
+true

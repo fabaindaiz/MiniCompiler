@@ -1,0 +1,9 @@
+(
+    (def (f t)
+      (let 
+        ((tup x y z) t)
+        (+ (+ x y) z)
+      )
+    )
+    (f (tup 2 3 5))
+)

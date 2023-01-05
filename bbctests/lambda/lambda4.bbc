@@ -1,0 +1,9 @@
+NAME: lambda 4
+DESCRIPTION: evaluates a function declaration after saving vars in stack
+SRC:
+(
+  (def (pairfun f g pf pg) (tup (@ f pf) (@ g pg)))
+  (@ (lambda (y) (pairfun (lambda (n) n) (lambda (z) z) 6 6)) 6)
+)
+EXPECTED:
+|ORACLE

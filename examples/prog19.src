@@ -1,0 +1,10 @@
+(
+    (def (map_pair f p)
+    (tup (@ f (get p 0)) (@ f (get p 1))))
+    
+    (let (offset 2)
+        (let (f (lambda (x)
+            (letrec ((f_offset (lambda (n) (if (<= n 0) 0 (@ f_offset (- n 1))))))
+            (+ x (@ f_offset offset)))))
+        (@ f -1)))
+)

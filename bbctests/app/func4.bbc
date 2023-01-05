@@ -1,0 +1,11 @@
+NAME: func 4
+DESCRIPTION: evaluates a function declaration
+SRC:
+(
+    (def (iden x) x)
+    (def (suma x y) (+ x y))
+    (def (comp x y) (suma (iden x) (iden y)))
+    (suma 3 (comp 5 8))
+)
+EXPECTED:
+16

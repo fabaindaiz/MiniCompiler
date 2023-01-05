@@ -1,0 +1,6 @@
+NAME: bool2
+DESCRIPTION: evaluates a boolean
+SRC:
+true
+EXPECTED:
+true

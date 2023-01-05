@@ -1,0 +1,12 @@
+NAME: let tuple 3
+DESCRIPTION: ejemplo del apunte
+SRC:
+(
+  (def (f t)
+      (let ((tup x y z) t)
+        (+ (+ x y) z)))
+    (let ((tup x y z) (tup 5 2 3))
+      (f (tup y z x)))
+)
+EXPECTED:
+10

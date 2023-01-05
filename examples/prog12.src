@@ -1,0 +1,13 @@
+(
+    (record point3d x y z)
+    (def (addpoint3d p1 p2)
+        (point3d (+ (point3d-x p1) (point3d-x p2))
+                (+ (point3d-y p1) (point3d-y p2))
+                (+ (point3d-z p1) (point3d-z p2))
+        )
+    )
+    (let 
+        (p (point3d 1 1 1))
+        (addpoint3d p p)
+    )
+)

@@ -1,0 +1,10 @@
+NAME: or nolazy
+DESCRIPTION: evaluates a logic or
+SRC:
+(
+    (defsys print any -> any)
+    (or false (not (print false)))
+)
+EXPECTED:
+> false
+true

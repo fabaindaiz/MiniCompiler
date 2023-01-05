@@ -1,0 +1,8 @@
+NAME: let-bind 5
+DESCRIPTION: evaluates a let-binding hard
+SRC:
+(let (a 10)
+ (let (b 4)
+  (+ (+ a b) (+ a b))))
+EXPECTED:
+28

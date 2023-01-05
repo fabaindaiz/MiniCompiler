@@ -1,0 +1,9 @@
+NAME: func call in big stack expr
+DESCRIPTION: evaluates a function declaration
+SRC:
+(
+    (def (g x y) (+ x y))
+    (g (* (+ (- 1 (let (x 2) (+ (- (/ (* (+ (- 1 (let (x 2) (+ (- (g 4 x) 1) (* x 2)))) 2) 5) x) 1) (* x 2)))) 2) 5) 2)
+)
+EXPECTED:
+|ORACLE

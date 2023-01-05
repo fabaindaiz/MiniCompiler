@@ -1,0 +1,9 @@
+NAME: let-rec 2
+DESCRIPTION: evaluates a let-binding easy
+SRC:
+(letrec
+  ((even (lambda (n) (if (<= n 0) true (@ odd (+ n -1)))))
+    (odd  (lambda (n) (if (<= n 1) true (@ even (+ n -1))))))
+  (@ odd 13))
+EXPECTED:
+true

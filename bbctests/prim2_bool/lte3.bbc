@@ -1,0 +1,6 @@
+NAME: lte 3
+DESCRIPTION: evaluates a less than
+SRC:
+(<= 1 0)
+EXPECTED:
+false

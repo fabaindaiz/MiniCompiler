@@ -1,0 +1,13 @@
+NAME: C calls error 4
+DESCRIPTION: evaluates a program with C call type error
+SRC:
+(
+  (defsys max bool int -> any)
+  (defsys print any -> any)
+  (print (max true (+ 4 6)))
+)
+| Este test tiene un error a proposito en la definición tipos de max
+| Es para verificar el orden de testeo de los argumentos pasados a max
+EXPECTED:
+> true
+true

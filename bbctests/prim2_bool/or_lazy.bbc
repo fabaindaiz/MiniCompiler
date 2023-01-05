@@ -1,0 +1,9 @@
+NAME: or lazy
+DESCRIPTION: evaluates a logic or
+SRC:
+(
+    (defsys print any -> any)
+    (or true (print (sub1 0)))
+)
+EXPECTED:
+true

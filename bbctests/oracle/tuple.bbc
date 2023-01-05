@@ -1,0 +1,6 @@
+NAME: tuple
+DESCRIPTION: evaluates a tuple
+SRC:
+(tup 5 true (add1 1))
+EXPECTED:
+|ORACLE

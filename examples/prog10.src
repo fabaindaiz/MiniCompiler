@@ -1,0 +1,8 @@
+(get 
+    (if 
+      (<= 0 1) 
+      (tup (print false) -3 42) 
+      (tup true false 7)
+    ) 
+    (+ 1 1)
+  )

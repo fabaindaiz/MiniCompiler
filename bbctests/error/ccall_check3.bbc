@@ -1,0 +1,11 @@
+NAME: C calls error 3
+DESCRIPTION: evaluates a program with C call type error
+STATUS: RT error
+SRC:
+(
+  (defsys max int bool -> int)
+  (defsys print any -> any)
+  (print (+ 2 (max 5 (+ 4 6))))
+)
+EXPECTED:
+Type error: Expected boolean but got 10

@@ -1,0 +1,7 @@
+NAME: let-bind 1
+DESCRIPTION: evaluates a let-binding easy
+SRC:
+(let (x 10)
+ (add1 x))
+EXPECTED:
+11

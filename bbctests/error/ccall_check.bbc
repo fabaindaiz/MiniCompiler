@@ -1,0 +1,10 @@
+NAME: C calls error
+DESCRIPTION: evaluates a program with C call type error
+STATUS: RT error
+SRC:
+(
+  (defsys print int -> any)
+  (print true)
+)
+EXPECTED:
+Type error: Expected integer but got true

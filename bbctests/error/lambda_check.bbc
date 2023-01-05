@@ -1,0 +1,7 @@
+NAME: lambda type check error 
+DESCRIPTION: evaluates a program with type checking error
+STATUS: RT error
+SRC:
+(@ 1 true)
+EXPECTED:
+Type error: Expected closure but got 1
