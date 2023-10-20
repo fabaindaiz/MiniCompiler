@@ -8,7 +8,7 @@ ifeq ($(UNAME_S),Darwin) # for mac
 	BIN_FORMAT = macho64
 	TARGET = x86_64-darwin
 endif
-export CFLAGS ?= -target $(TARGET) -z noexecstack -g
+export CFLAGS ?= -target $(TARGET) -z noexecstack -g -fPIC
 
 F =  # nothing by default
 src = # nothing by default
