@@ -3,7 +3,9 @@ open Dev.Parse
 open Dev.Compile
 open Dev.Interp
 open Alcotest
-open Bbctester.Test
+open Bbcsteptester.Type
+open Bbcsteptester.Test
+open Bbcsteptester.Runtime
 open Printf
 
 (* Testing arithmetic expression using the print function defined in Interp 
@@ -601,20 +603,30 @@ let ocaml_tests = [
 
 (* Entry point of tester *)
 let () =
-  (* BBC tests: don't change the following, simply add .bbc files in the bbctests/ directory *)
-  let bbc_tests = 
-    let compile_flags = Option.value (Sys.getenv_opt "CFLAGS") ~default:"-g" in
-    let compiler : string -> out_channel -> unit = 
-      fun s o -> fprintf o "%s" (compile_prog (parse_prog (sexp_from_string s))) in
-    let oracle : string -> status * string = (
+
+  let compiler : compiler = 
+    Compiler (fun s o -> fprintf o "%s" (compile_prog (parse_prog (sexp_from_string s))) ) in
+
+  let compile_flags = Option.value (Sys.getenv_opt "CFLAGS") ~default:"-g" in
+  let runtime : runtime = (cruntime ~compile_flags "rt/sys.c") in
+  
+  let oracle : oracle = 
+    Interp (
       fun s -> (
         try
           NoError, string_of_val (interp_prog (parse_prog (sexp_from_string s)) empty_env)
         with
         | RTError msg -> RTError, msg
         | CTError msg -> CTError, msg
-        |  e -> RTError, "Oracle raised an unknown error :"^ Printexc.to_string e 
+        | e -> RTError, "Oracle raised an unknown error :"^ Printexc.to_string e 
       )
-    ) in
-    tests_from_dir ~compile_flags ~compiler ~oracle ~runtime:"rt/sys.c" "bbctests" in
-  run "Tests entrega 5" (ocaml_tests @ bbc_tests)
+    )
+  in
+  
+  let bbc_tests =
+    let name : string = "bbc" in
+    let action : action = Compare in
+    tests_from_dir ~name ~compiler ~runtime ~oracle ~action "bbctests" in
+  
+  run "Tests MiniCompiler" (ocaml_tests @ bbc_tests)
+
