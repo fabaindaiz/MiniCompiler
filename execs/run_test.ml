@@ -4,9 +4,9 @@ open Dev.Compile
 open Dev.Interp
 open Alcotest
 open Bbcsteptester.Type
-open Bbcsteptester.Test
+open Bbcsteptester.Main
 open Bbcsteptester.Runtime
-open Printf
+
 
 (* Testing arithmetic expression using the print function defined in Interp 
    and the default equality for comparison *)
@@ -605,28 +605,23 @@ let ocaml_tests = [
 let () =
 
   let compiler : compiler = 
-    Compiler (fun s o -> fprintf o "%s" (compile_prog (parse_prog (sexp_from_string s))) ) in
+    SCompiler ( fun _ s -> (compile_prog (parse_prog (sexp_from_string s))) ) in
 
-  let compile_flags = Option.value (Sys.getenv_opt "CFLAGS") ~default:"-g" in
-  let runtime : runtime = (cruntime ~compile_flags "rt/sys.c") in
+  let compile_flags = Option.value (Sys.getenv_opt "CFLAGS") ~default: "-z noexecstack -g -m64 -fPIE -pie" in
+  let runtime : runtime = (clang_runtime ~compile_flags "rt/sys.c") in
   
-  let oracle : oracle = 
-    Interpreter (
-      fun s -> (
-        try
-          NoError, string_of_val (interp_prog (parse_prog (sexp_from_string s)) empty_env)
-        with
-        | RTError msg -> RTError, msg
-        | CTError msg -> CTError, msg
-        | e -> RTError, "Oracle raised an unknown error :"^ Printexc.to_string e 
-      )
-    )
+  let oracle : runtime = 
+    Runtime ( fun _ s -> (
+      try Ok (string_of_val (interp_prog (parse_prog (sexp_from_string s)) empty_env))
+      with
+      | RTError msg -> Error (RTError, msg)
+      | CTError msg -> Error (CTError, msg)
+      | e -> Error (RTError, "Oracle raised an unknown error :" ^ Printexc.to_string e)
+    ))
   in
   
   let bbc_tests =
     let name : string = "bbc" in
-    let action : action = CompareOutput in
-    tests_from_dir ~name ~compiler ~runtime ~oracle ~action "bbctests" in
+    tests_from_dir ~name ~compiler ~runtime ~oracle "bbctests" in
   
   run "Tests MiniCompiler" (ocaml_tests @ bbc_tests)
-

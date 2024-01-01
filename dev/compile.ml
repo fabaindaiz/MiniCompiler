@@ -334,6 +334,8 @@ let compile_functions_alt (flist : tag efundef list) : (instruction list * fenv 
 
 (* generate asm prelude *)
 let prelude (defsys : string) = sprintf "
+  default rel
+
   section .text 
   global our_code_starts_here 
 %s" defsys
