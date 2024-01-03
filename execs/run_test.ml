@@ -608,16 +608,15 @@ let () =
     SCompiler ( fun _ s -> (compile_prog (parse_prog (sexp_from_string s))) ) in
 
   let compile_flags = Option.value (Sys.getenv_opt "CFLAGS") ~default: "-z noexecstack -g -m64 -fPIE -pie" in
-  let runtime : runtime = (clang_runtime ~compile_flags "rt/sys.c") in
+  let runtime : runtime = clang_runtime ~compile_flags "rt/sys.c" in
   
   let oracle : runtime = 
-    Runtime ( fun _ s -> (
+    fun _ s ->
       try Ok (string_of_val (interp_prog (parse_prog (sexp_from_string s)) empty_env))
       with
       | RTError msg -> Error (RTError, msg)
       | CTError msg -> Error (CTError, msg)
       | e -> Error (RTError, "Oracle raised an unknown error :" ^ Printexc.to_string e)
-    ))
   in
   
   let bbc_tests =
