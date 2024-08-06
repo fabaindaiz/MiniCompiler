@@ -3,9 +3,9 @@ open Dev.Parse
 open Dev.Compile
 open Dev.Interp
 open Alcotest
-open Bbcsteptester.Type
-open Bbcsteptester.Main
-open Bbcsteptester.Runtime
+open Bbctester.Type
+open Bbctester.Main
+open Bbctester.Runtime
 
 
 (* Testing arithmetic expression using the print function defined in Interp 

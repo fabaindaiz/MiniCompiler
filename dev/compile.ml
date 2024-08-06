@@ -56,7 +56,10 @@ let compile_lambda (compile_expr) (reg : reg) (params) (body) (tag : tag) (env :
   
   [ ICom ("closure information") ] @
   [ IMovq (RegOffset(reg, 0), Const args_num) ] @ (* set arg size at pos 0 *)
-  [ IMovq (RegOffset(reg, 1), Any fun_name) ] @ clos_pack @ 
+
+  [ ILea (Reg RAX, Rel fun_name) ] @
+  [ IMovq (RegOffset(reg, 1), Reg RAX) ] @ clos_pack @
+
   [ ICom ("closure value") ] @
   [ IMov (Reg RAX, Reg reg) ; IAdd (Reg RAX, Const closure_tag) ] (* create lambda tuple *)
 

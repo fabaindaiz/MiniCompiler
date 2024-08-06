@@ -21,6 +21,7 @@ type reg =
 type arg =
 | Const of int64 (* explicit numeric constants *)
 | Reg of reg (* any named and stack register *)
+| Rel of string (* relative to the heap pointer *)
 | RegOffset of reg * int (* RegOffset(reg, i) represents address [reg + 8*i] *)
 | HeapOffset of reg * reg
 | Any of string (* encapsulate any string as an arg *)
@@ -29,6 +30,7 @@ type arg =
 type instruction =
 | IMov of arg * arg (* Move the value of the right-side arg into the left-arg *)
 | IMovq of arg * arg
+| ILea of arg * arg
 | IAdd of arg * arg (* Increment the left-hand arg by the value of the right-hand arg *)
 | ISub of arg * arg
 | IMul of arg * arg
@@ -82,6 +84,7 @@ let pp_arg (arg : arg) : string =
   match arg with
   | Const n -> sprintf "%#Lx" n
   | Reg r -> pp_reg r
+  | Rel s -> sprintf "[rel %s]" s
   | RegOffset (a1, a2) -> sprintf "[%s + %d]" (pp_reg a1) (8  * a2)
   | HeapOffset (a1, a2) -> sprintf "[%s + %s]" (pp_reg a1) (pp_reg a2)
   | Any s -> s
@@ -91,6 +94,7 @@ let pp_instr (instr : instruction) : string =
   match instr with
   | IMov (a1, a2) -> sprintf "  mov %s, %s" (pp_arg a1) (pp_arg a2)
   | IMovq (a1, a2) -> sprintf "  mov qword %s, %s" (pp_arg a1) (pp_arg a2)
+  | ILea (a1, a2) -> sprintf "  lea %s, %s" (pp_arg a1) (pp_arg a2)
   | IAdd (a1, a2) -> sprintf "  add %s, %s" (pp_arg a1) (pp_arg a2)
   | ISub (a1, a2) -> sprintf "  sub %s, %s" (pp_arg a1) (pp_arg a2)
   | IMul (a1, a2) -> sprintf "  imul %s, %s" (pp_arg a1) (pp_arg a2)
