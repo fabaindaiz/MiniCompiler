@@ -1,14 +1,20 @@
 # Picked from https://stackoverflow.com/questions/714100/os-detecting-makefile
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Linux)
-	BIN_FORMAT = elf64
-	TARGET = x86_64-linux
+ifeq ($(OS),Windows_NT) # for windows
+	BIN_FORMAT = win64
+	TARGET = x86_64-windows
+else
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S),Linux) # for linux
+		BIN_FORMAT = elf64
+		TARGET = x86_64-linux
+	endif
+	ifeq ($(UNAME_S),Darwin) # for mac
+		BIN_FORMAT = macho64
+		TARGET = x86_64-darwin
+	endif
 endif
-ifeq ($(UNAME_S),Darwin) # for mac
-	BIN_FORMAT = macho64
-	TARGET = x86_64-darwin
-endif
-export CFLAGS ?= -target $(TARGET) -z noexecstack -g -m64 -fPIE -pie
+export CLANG_FLAGS ?= -target $(TARGET) -g -z noexecstack
+export GCC_FLAGS ?= -g -z noexecstack
 
 F =  # nothing by default
 src = # nothing by default
@@ -34,7 +40,7 @@ interp:
 	dune exec execs/run_interp.exe $(src)
 
 %.run: %.o rt/sys.c
-	clang -o $@ $(CFLAGS) rt/sys.c $<
+	clang -o $@ $(CLANG_FLAGS) rt/sys.c $<
 
 %.o: %.s
 	nasm -f $(BIN_FORMAT) -o $@ $<
@@ -49,6 +55,6 @@ clean: clean-tests
 	rm -Rf _build
 
 clean-tests:
-	rm -f bbctests/*.s bbctests/*.o bbctests/*.run bbctests/*.result bbctests/*~
+	find bbctests -type f \( -name "*.s" -o -name "*.o" -o -name "*.run" -o -name "*.result" -o -name "*~" \) -exec rm -f {} +
 	rm -rf bbctests/*dSYM
 

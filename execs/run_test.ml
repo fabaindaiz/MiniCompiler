@@ -607,8 +607,8 @@ let () =
   let compiler : compiler = 
     SCompiler ( fun _ s -> (compile_prog (parse_prog (sexp_from_string s))) ) in
 
-  let compile_flags = Option.value (Sys.getenv_opt "CFLAGS") ~default: "-z noexecstack -g -m64 -fPIE -pie" in
-  let runtime : runtime = clang_runtime ~compile_flags "rt/sys.c" in
+  let compile_flags = Option.value (Sys.getenv_opt "GCC_FLAGS") ~default: "-z noexecstack -g -m64" in
+  let runtime : runtime = gcc_runtime ~compile_flags "rt/sys.c" in
   
   let oracle : runtime = 
     fun _ s ->
