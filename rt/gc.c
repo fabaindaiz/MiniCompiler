@@ -73,7 +73,7 @@ void print_heaps(){
 // retorna el objecto con su direccion (taggeada) en el nuevo espacio
 u64 move(u64 val, u64 size, uint64_t tag){
   if ((((u64*)val)[0] & FORWARDER_TAG) == FORWARDER_TAG){
-    return (u64) (((u64*)val)[0] - FORWARDER_TAG + tag);
+    return (u64) (((u64*)val)[0] - FORWARDER_TAG ^ tag);
   }
 
   u64 forward = (u64) ALLOC_PTR + FORWARDER_TAG;
@@ -81,7 +81,7 @@ u64 move(u64 val, u64 size, uint64_t tag){
   {
     ALLOC_PTR[i] = ((u64*)(val ^ tag))[i];
   }
-  u64 new_val = ((u64) ALLOC_PTR) + tag;
+  u64 new_val = ((u64) ALLOC_PTR) ^ tag;
   ALLOC_PTR += size;
   ((u64*)val)[0] = forward;
   return new_val;
@@ -90,21 +90,16 @@ u64 move(u64 val, u64 size, uint64_t tag){
 // revisa el contenido de reg y si es una referencia a un objeto lo copia al to_space, luego iterativamente 
 // busca referencias a objetos entre los valores copiados y mueve esos objetos tambien
 void scan_reg(u64* reg) {
-  do {
-    u64 val = *reg; 
-    if (is_tuple(val) && is_valid_pointer((u64*)(val ^ TUPLE_TAG))){
-      u64 size = *((u64*)(val ^ TUPLE_TAG));
-      *reg = move(val, size+1, TUPLE_TAG);
-      
-    }
-    else if(is_closure(val) && is_valid_pointer((u64*)(val ^ CLOSURE_TAG))){
-      u64 size = ((u64*)(val ^ CLOSURE_TAG))[2];
-      *reg = move(val, size+3, CLOSURE_TAG);
-    }
-
-    reg = ++SCAN_PTR;
+  u64 val = *reg; 
+  if (is_tuple(val) && is_valid_pointer((u64*)(val ^ TUPLE_TAG))){
+    u64 size = *((u64*)(val ^ TUPLE_TAG));
+    *reg = move(val, size+1, TUPLE_TAG);
+    
   }
-  while (SCAN_PTR < ALLOC_PTR);
+  else if(is_closure(val) && is_valid_pointer((u64*)(val ^ CLOSURE_TAG))){
+    u64 size = ((u64*)(val ^ CLOSURE_TAG))[2];
+    *reg = move(val, size+3, CLOSURE_TAG);
+  }
 }
 
 u64* collect(u64* cur_frame, u64* cur_sp) {
@@ -118,19 +113,20 @@ u64* collect(u64* cur_frame, u64* cur_sp) {
   SCAN_PTR = ALLOC_PTR;
   // scan stack and copy roots
   // scan objects in the heap
-  while(true){
+  while(cur_sp < STACK_BOTTOM){
     for (u64 i = 0; i < (u64)(cur_frame - cur_sp); i++) {
-
       scan_reg(cur_sp + i);
     }
     
     cur_sp = cur_frame;
-    if(cur_sp >= STACK_BOTTOM){
-      break;
-    }
     cur_frame = (u64*)(cur_sp[0]);
     cur_sp += 2;
   }
+
+  while (SCAN_PTR < ALLOC_PTR){
+    scan_reg(SCAN_PTR++);
+  }
+
   // clean old space
   return ALLOC_PTR;
 }
